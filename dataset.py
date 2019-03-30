@@ -4,7 +4,7 @@
 #
 # Copyright © 2019 Theo Morales <theo.morales.fr@gmail.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GPLv3 license.
 
 """
 Dataset class, holding background images along with their annotations

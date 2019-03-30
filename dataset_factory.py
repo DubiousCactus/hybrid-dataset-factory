@@ -4,7 +4,7 @@
 #
 # Copyright © 2019 Theo Morales <theo.morales.fr@gmail.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GPLv3 license.
 
 """
 DatasetFactory
@@ -53,7 +53,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 [x] Motion blur
 [x] Anti alisasing
-[ ] Ship it!
+[x] Ship it!
 
 '''
 
@@ -136,10 +136,15 @@ class DatasetFactory:
         background = self.background_dataset.get()
         projector.set_drone_pose(background.annotations)
         projection, annotations = projector.generate(min_dist=self.min_dist, max_gates=self.max_gates)
+        projection.save("proj.png")
         projection_blurred = self.apply_motion_blur(projection,
                                                     amount=self.get_blur_amount(background.image()))
+        Image.fromarray(projection_blurred).save("proj_blur.png")
         projection_noised = self.add_noise(projection_blurred)
+        projection_noised.save("proj_noised.png")
+        background.image().save('bg.png')
         output = self.combine(projection_noised, background.image())
+        output.save('output_clean.png')
         gate_center = self.scale_coordinates(annotations['gate_center_img_frame'], output.size)
         gate_visible = (gate_center[0] >=0 and gate_center[0] <=
                         output.size[0]) and (gate_center[1] >= 0 and
@@ -232,21 +237,21 @@ if __name__ == "__main__":
         selected background images from a given dataset.')
     parser.add_argument('mesh', help='the 3D mesh to project', type=str)
     parser.add_argument('dataset', help='the path to the background images \
-                        dataset, with height, roll, pitch and yaw annotations',
-                       type=str)
+                        dataset', type=str)
     parser.add_argument('annotations', help='the path to the CSV annotations\
-                        file', type=str)
+                        file, with height, roll, pitch and yaw annotations', type=str)
     parser.add_argument('destination', metavar='dest', help='the path\
                         to the destination folder for the generated dataset',
                         type=str)
     parser.add_argument('--count', dest='nb_images', default=5, type=int,
                         help='the number of images to be generated')
     parser.add_argument('--res', dest='resolution', default='640x480',
-                        type=str, help='the desired resolution')
+                        type=str, help='the desired resolution (WxH)')
     parser.add_argument('-t', dest='threads', default=4, type=int,
                         help='the number of threads to use')
     parser.add_argument('--camera', dest='camera_parameters', type=str,
-                        help='the path to the camera parameters YAML file',
+                        help='the path to the camera parameters YAML file\
+                        (output of OpenCV\'s calibration)',
                         required=True)
     parser.add_argument('-v', dest='verbose', help='verbose output',
                         action='store_true', default=False)

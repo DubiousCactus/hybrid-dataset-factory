@@ -4,7 +4,7 @@
 #
 # Copyright © 2019 Theo Morales <theo.morales.fr@gmail.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GPLv3 license.
 
 """
 SceneRenderer
@@ -20,7 +20,7 @@ import random
 import yaml
 
 from pyrr import Matrix44, Quaternion, Vector3, Vector4, vector
-from moderngl.ext.obj import Obj
+from ModernGL.ext.obj import Obj
 from math import degrees, radians, cos, sin
 from PIL import Image
 
