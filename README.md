@@ -7,7 +7,7 @@
 
 Collecting a large dataset for the specific case of autonomous drone racing can be a tedious and long process, especially for the images annotation if you need to know the gates position or orientation relative to the camera.
 
-This tool aims to automate the main part of this task, by generating 3D projections of a given mesh in a virtual space, which can be adjusted to your physical space dimensions. Such projections are then overlayed on top of randomly selected images from a given base dataset, which must be annotated with camera poses and orientations for the virtual camera to be aligned properly.
+This tool aims to automate the main part of this task, by generating 3D projections of a given mesh in a virtual space, which can be adjusted to your physical space dimensions. Such projections are then overlaid on top of randomly selected images from a given base dataset, which must be annotated with camera poses and orientations for the virtual camera to be aligned properly.
 
 The output is a collection of images along with a CSV file containing per-image annotations, including:
 
