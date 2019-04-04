@@ -149,7 +149,7 @@ The following Python3 packages are required (using an Anaconda environment is re
 - [x] Save generated dataset online in a separate thread
 - [x] Add background gates
 - [x] Compute gate visibility percentage over the whole dataset
-- [ ] Compute gate orientation with respect to the camera
+- [x] Compute gate orientation with respect to the camera
 - [x] Save annotations
 - [ ] Apply the distortion to the OpenGL projection
 - [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
