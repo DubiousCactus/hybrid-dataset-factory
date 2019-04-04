@@ -72,6 +72,7 @@ class DatasetFactory:
         self.seed = args.seed
         self.max_gates = args.max_gates
         self.min_dist = args.min_dist
+        self.oos_percentage = args.oos_percentage
         if self.render_perspective:
             self.verbose = True
         self.background_dataset = Dataset(args.dataset, args.seed)
@@ -92,8 +93,9 @@ class DatasetFactory:
         print("[*] Generating dataset...")
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
         projector = SceneRenderer(self.mesh_path, self.base_width, self.base_height,
-                                        self.world_boundaries, self.gate_center,
-                                        self.cam_param, self.render_perspective, self.seed)
+                                  self.world_boundaries, self.gate_center,
+                                  self.cam_param, self.render_perspective,
+                                  self.seed, self.oos_percentage)
         save_thread.start()
         for i in tqdm(range(self.count),
                       unit="img", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"):
@@ -156,6 +158,7 @@ class DatasetFactory:
             if gate_visible:
                 self.draw_gate_center(output, gate_center)
                 self.draw_gate_normal(output, gate_center, annotations['gate_normal'])
+
             self.draw_image_annotations(output, annotations)
 
         self.generated_dataset.put(
@@ -276,6 +279,9 @@ if __name__ == "__main__":
     parser.add_argument('--min-dist', dest='min_dist', type=float, help='the\
                         minimum distance between each gate, in meter',
                         default=3.5)
+    parser.add_argument('--oos', dest='oos_percentage', default=0.1,
+                        type=float, help='the out-of-screen acceptance margin'
+                        ' for the gate center, in image frame percentage')
 
     datasetFactory = DatasetFactory(parser.parse_args())
     datasetFactory.set_mesh_parameters(

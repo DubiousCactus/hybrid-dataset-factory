@@ -1,4 +1,5 @@
 # Hybrid Dataset Factory
+
 ##### A semi-synthetic dataset generation tool, specifically crafted for training CNNs used in autonomous drone racing.
 
 ![Hybrid image generation example](animation.gif)
@@ -11,10 +12,9 @@ This tool aims to automate the main part of this task, by generating 3D projecti
 
 The output is a collection of images along with a CSV file containing per-image annotations, including:
 
-+ The gate center in pixel coordinates
-+ The gate rotation in degrees [TODO]
-+ The gate visibility on the image (boolean)
-
+- The gate center in pixel coordinates
+- The gate rotation in degrees [TODO]
+- The gate visibility on the image (boolean)
 
 ## Usage
 
@@ -27,7 +27,7 @@ usage: dataset_factory.py [-h] [--count NB_IMAGES] [--res RESOLUTION]
 						  [--noise NOISE_AMOUNT] [--no-blur]
 						  [--max-gates MAX_GATES] [--min-dist MIN_DIST]
 						  mesh dataset annotations dest
-						  
+
 Generate a hybrid synthetic dataset of projections of a given 3D model, in
 random positions and orientations, onto randomly selected background images
 from a given dataset.
@@ -39,7 +39,7 @@ annotations           the path to the CSV annotations file, with
 					  height, roll, pitch and yaw annotations
 dest                  the path to the destination folder for the generated
 					  dataset
-					  
+
 optional arguments:
 -h, --help            show this help message and exit
 --count NB_IMAGES     the number of images to be generated
@@ -58,6 +58,8 @@ optional arguments:
 --max-gates MAX_GATES
 					  the maximum amount of gates to spawn
 --min-dist MIN_DIST   the minimum distance between each gate, in meter
+--oos OOS_PERCENTAGE  the out-of-screen acceptance margin for the gate
+					  center, in image frame percentage
 ```
 
 At the bottom of the file, you are free to set the virtual environment boundaries (which should match your real environment in which you recorded the base dataset), as well as the gate center coordinates, relative to your mesh.
@@ -81,6 +83,7 @@ dataset/
 ```
 
 ### Base dataset
+
 The dataset used as background images (most likely your target environment) must
 have been taken with the same camera as the one described in your camera paremeters
 YAML file (on which you ran OpenCV's calibration).
@@ -110,6 +113,7 @@ background_dataset/
 ```
 
 ### 3D Mesh
+
 A custom racing gate model is provided in the `data/` folder, along with a rudimentary
 texture, but it is up to you to use whichever OBJ file you desire.
 Do know that the scale you use for your model must be in accordance with the scale you provide in your base dataset annotations.
@@ -118,21 +122,19 @@ Do know that the scale you use for your model must be in accordance with the sca
 
 The following Python3 packages are required (using an Anaconda environment is recommended):
 
-+ numpy
-+ argparse
-+ opencv-python
-+ tqdm
-+ PIL
-+ skimage
-+ pyrr
-+ numpy-quaternion
-+ ModernGL
-+ ModernGL.ext.obj
-+ PyYAML
-
+- numpy
+- argparse
+- opencv-python
+- tqdm
+- PIL
+- skimage
+- pyrr
+- numpy-quaternion
+- ModernGL
+- ModernGL.ext.obj
+- PyYAML
 
 ## Roadmap
-
 
 - [x] Thread it!
 - [x] Random positioning of the gate

@@ -27,7 +27,7 @@ from PIL import Image
 class SceneRenderer:
     def __init__(self, mesh_path: str, width: int, height: int,
                  world_boundaries, gate_center: Vector3, camera_parameters,
-                 render_perspective=False, seed=None):
+                 render_perspective=False, seed=None, oos_percentage=0.05):
         if seed:
             random.seed(seed)
         else:
@@ -38,6 +38,7 @@ class SceneRenderer:
         self.height = height
         self.gate_center = gate_center
         self.boundaries = self.compute_boundaries(world_boundaries)
+        self.out_of_screen_margin = oos_percentage
         with open(camera_parameters, 'r') as cam_file:
             try:
                 self.camera_parameters = yaml.safe_load(cam_file)
@@ -157,19 +158,9 @@ class SceneRenderer:
         if np.linalg.norm(gate_center - self.drone_pose.translation)/2 <= 0.5:
             return [-1, -1]
 
-        # TODO: Move the gate center back to the image frame if it's slightly
-        # outside of the image frame (the gate frame is still visible and we can
-        # guess where to steer)
-
-        '''
-        If the gate is less than 2m ahead, and if the gate center in pixels is
-        less than 1/5 of the image size outside, clip it to max x or min x
-        '''
-
         clip_space_gate_center = self.projection * (view *
                                                     Vector4.from_vector3(gate_center,
                                                                          w=1.0))
-
         if clip_space_gate_center.w != 0:
             normalized_device_coordinate_space_gate_center\
                 = Vector3(clip_space_gate_center.xyz) / clip_space_gate_center.w
@@ -188,6 +179,15 @@ class SceneRenderer:
         # Translate from bottom-left to top-left
         image_frame_gate_center[1] = self.height - image_frame_gate_center[1]
 
+        # Move the gate center back to the image frame if it's slightly
+        # outside of the image frame (the gate frame is still visible and we can
+        # guess where to steer)
+        for i in range(2):
+            if image_frame_gate_center[i] <= 0:
+                offset = (-image_frame_gate_center[i]) / (self.width if i == 0
+                                                          else self.height)
+                if offset <= self.out_of_screen_margin:
+                    image_frame_gate_center[i] = 1
 
         return image_frame_gate_center
 
