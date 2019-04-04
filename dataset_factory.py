@@ -153,7 +153,9 @@ class DatasetFactory:
             self.visible_gates += 1
 
         if self.verbose:
-            self.draw_gate_center(output, gate_center)
+            if gate_visible:
+                self.draw_gate_center(output, gate_center)
+                self.draw_gate_normal(output, gate_center, annotations['gate_normal'])
             self.draw_image_annotations(output, annotations)
 
         self.generated_dataset.put(
@@ -214,14 +216,18 @@ class DatasetFactory:
 
         return cv2.filter2D(cv_img, -1, kernel)
 
-    def draw_gate_center(self, img, coordinates, color=(0, 255, 0, 255)):
+    def draw_gate_center(self, img, coordinates, color="green"):
         gate_draw = ImageDraw.Draw(img)
         gate_draw.line((coordinates[0] - 10, coordinates[1], coordinates[0] + 10,
                    coordinates[1]), fill=color)
         gate_draw.line((coordinates[0], coordinates[1] - 10, coordinates[0],
                    coordinates[1] + 10), fill=color)
 
-    def draw_image_annotations(self, img, annotations, color=(0, 255, 0, 255)):
+    def draw_gate_normal(self, img, center, normal_gt, color="red"):
+        gate_draw = ImageDraw.Draw(img)
+        gate_draw.line((center[0], center[1], normal_gt[0], normal_gt[1]), fill=color, width=2)
+
+    def draw_image_annotations(self, img, annotations, color="green"):
         text = "gate_center_image_frame: {}\ngate_position: {}\ngate_rotation: {}\ndrone_pose: {}\ndrone_orientation:{}".format(
             annotations['gate_center_img_frame'], annotations['gate_position'],
                 annotations['gate_rotation'], annotations['drone_pose'],
@@ -274,6 +280,6 @@ if __name__ == "__main__":
     datasetFactory = DatasetFactory(parser.parse_args())
     datasetFactory.set_mesh_parameters(
         {'x': 10, 'y': 10}, # Real world boundaries in meters (relative to the mesh's scale)
-        Vector3([0.0, 0.0, 2.1]) # Gate center: figure this out yourself
+        Vector3([0.0, 0.0, 2.2]) # Gate center: figure this out yourself
     )
     datasetFactory.run()
