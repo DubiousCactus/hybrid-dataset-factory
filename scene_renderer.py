@@ -20,7 +20,6 @@ import yaml
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
 from moderngl.ext.obj import Obj
-from math import degrees, radians, cos, sin
 from PIL import Image
 
 
