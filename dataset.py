@@ -39,9 +39,9 @@ class BackgroundImage:
 
 
 class SyntheticAnnotations:
-    def __init__(self, center, orientation, on_screen: bool):
+    def __init__(self, center, orientation: Quaternion, on_screen: bool):
         self.center = [int(x) for x in center]
-        self.orientation = int(orientation)
+        self.orientation = orientation
         self.on_screen = 1 if on_screen else 0
 
 
@@ -129,7 +129,7 @@ class Dataset:
             self.output_csv = open(os.path.join(self.path,
                                                 'annotations.csv'), 'w')
             self.output_csv.write(
-                "frame,gate_center_x,gate_center_y,gate_rotation,gate_visible\n")
+                "frame,gate_center_x,gate_center_y,gate_rotation_x,gate_rotation_y,gate_rotation_z,quaternion_w,gate_visible\n")
             self.saving = True
             if not os.path.isdir(os.path.join(self.path, 'images')):
                 os.mkdir(os.path.join(self.path, 'images'))
@@ -139,11 +139,14 @@ class Dataset:
             annotatedImage.image.save(
                 os.path.join(self.path, 'images', name)
             )
-            self.output_csv.write("{},{},{},{},{}\n".format(
+            self.output_csv.write("{},{},{},{},{},{},{},{}\n".format(
                 name,
                 annotatedImage.annotations.center[0],
                 annotatedImage.annotations.center[1],
-                annotatedImage.annotations.orientation,
+                annotatedImage.annotations.orientation.x,
+                annotatedImage.annotations.orientation.y,
+                annotatedImage.annotations.orientation.z,
+                annotatedImage.annotations.orientation.w,
                 annotatedImage.annotations.on_screen
             ))
             self.output_csv.flush()
