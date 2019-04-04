@@ -14,13 +14,12 @@ Generates an image by projecting a 3D mesh over a 2D transparent background.
 
 
 import numpy as np
-import quaternion
 import moderngl
 import random
 import yaml
 
-from pyrr import Matrix44, Quaternion, Vector3, Vector4, vector
-from ModernGL.ext.obj import Obj
+from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
+from moderngl.ext.obj import Obj
 from math import degrees, radians, cos, sin
 from PIL import Image
 
@@ -101,6 +100,9 @@ class SceneRenderer:
         ''' Randomly rotate the gate horizontally, around the Z-axis '''
         gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
         model = Matrix44.from_translation(gate_translation) * gate_rotation
+        # With respect to the camera, for the annotation
+        gate_orientation = Matrix33(self.drone_pose.orientation) * Matrix33(gate_rotation)
+        gate_orientation = Quaternion.from_matrix(gate_orientation)
 
         # Model View Projection matrix
         mvp = self.projection * view * model
@@ -118,7 +120,32 @@ class SceneRenderer:
         vbo = self.context.buffer(self.mesh.pack())
         vao = self.context.simple_vertex_array(prog, vbo, *['in_vert', 'in_text', 'in_norm'])
 
-        return vao, model, gate_translation, gate_rotation
+        return vao, model, gate_translation, gate_orientation
+
+    '''
+        Converting the gate normal's world coordinates to image coordinates
+    '''
+    # TODO: Refactor the next two functions
+    def compute_gate_normal(self, view, model):
+        gate_normal = model * (self.gate_center + Vector3([0, 0.5, 0]))
+        clip_space_gate_normal = self.projection * (view *
+                                                    Vector4.from_vector3(gate_normal,
+                                                                         w=1.0))
+        if clip_space_gate_normal.w != 0:
+            normalized_device_coordinate_space_gate_normal\
+                = Vector3(clip_space_gate_normal.xyz) / clip_space_gate_normal.w
+        else: # Clipped
+            normalized_device_coordinate_space_gate_normal = clip_space_gate_normal.xyz
+
+        viewOffset = 0
+        image_frame_gate_normal =\
+            ((np.array(normalized_device_coordinate_space_gate_normal.xy) + 1.0) /
+             2.0) * np.array([self.width, self.height]) + viewOffset
+
+        # Translate from bottom-left to top-left
+        image_frame_gate_normal[1] = self.height - image_frame_gate_normal[1]
+
+        return image_frame_gate_normal
 
     '''
         Converting the gate center's world coordinates to image coordinates
@@ -247,6 +274,7 @@ class SceneRenderer:
         gate_center = None
         gate_translation = None
         gate_rotation = None
+        gate_normal = None
         min_prox = None
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
@@ -258,6 +286,7 @@ class SceneRenderer:
                 gate_center = center
                 gate_translation = translation
                 gate_rotation = rotation
+                gate_normal = self.compute_gate_normal(view, model)
             vao.render()
             vao.release()
 
@@ -280,13 +309,10 @@ class SceneRenderer:
         annotations = {
             'gate_center_img_frame': gate_center,
             'gate_position': gate_translation,
-            'gate_rotation':
-                [degrees(x) for x in
-                 quaternion.as_euler_angles(np.quaternion(*gate_rotation.xyzw))][1],
+            'gate_rotation': gate_rotation,
+            'gate_normal': gate_normal,
             'drone_pose': self.drone_pose.translation,
-            'drone_orientation':
-                [degrees(x) for x in
-                 quaternion.as_euler_angles(np.quaternion(*self.drone_pose.orientation.xyzw))]
+            'drone_orientation':self.drone_pose.orientation
         }
 
         '''
