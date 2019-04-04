@@ -19,7 +19,7 @@ import random
 import yaml
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
-from moderngl.ext.obj import Obj
+from ModernGL.ext.obj import Obj
 from math import degrees, radians, cos, sin
 from PIL import Image
 
@@ -44,6 +44,7 @@ class SceneRenderer:
                 self.camera_parameters = yaml.safe_load(cam_file)
             except yaml.YAMLError as exc:
                 raise Exception(exc)
+        self.gates = []
         self.setup_opengl()
 
     def compute_boundaries(self, world_boundaries):
@@ -75,36 +76,48 @@ class SceneRenderer:
             [0, 0, (-zfar - znear)/(zfar - znear), -1],
             [0, 0, (-2.0*zfar*znear)/(zfar - znear), 0] # TODO: EXPLAIN WHY IT WORKS WHEN I FLIP [2][2] AND [3][2]
         ])
+        self.gate_poses = []
+        for i in range(5):
+            ''' Randomly move the gate around, while keeping it inside the boundaries '''
+            gate_translation = None
+            too_close = True
+            min_dist = 4
+            # Prevent gates from spawning too close to each other
+            while too_close:
+                too_close = False
+                gate_translation = Vector3([
+                    random.uniform(-self.boundaries['x'], self.boundaries['x']),
+                    random.uniform(-self.boundaries['y'], self.boundaries['y']),
+                    0
+                ])
+                for gate_pose in self.gate_poses:
+                    if np.linalg.norm(gate_pose - gate_translation) <= float(min_dist):
+                        too_close = True
+                        break
+
+            self.gate_poses.append(gate_translation)
+
+            ''' Randomly rotate the gate horizontally, around the Z-axis '''
+            gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
+            model = Matrix44.from_translation(gate_translation) * gate_rotation
+            # With respect to the camera, for the annotation
+            # gate_orientation = Matrix33(self.drone_pose.orientation) * Matrix33(gate_rotation)
+            # gate_orientation = Quaternion.from_matrix(gate_orientation)
+            gate_orientation = Quaternion()
+
+            self.gates.append({
+                'model': model,
+                'translation': gate_translation,
+                'orientation': gate_orientation
+            })
 
     def destroy(self):
         self.context.release()
 
-    def render_gate(self, view, min_dist):
-        ''' Randomly move the gate around, while keeping it inside the boundaries '''
-        gate_translation = None
-        too_close = True
-        # Prevent gates from spawning too close to each other
-        while too_close:
-            too_close = False
-            gate_translation = Vector3([
-                random.uniform(-self.boundaries['x'], self.boundaries['x']),
-                random.uniform(-self.boundaries['y'], self.boundaries['y']),
-                0
-            ])
-            for gate_pose in self.gate_poses:
-                if np.linalg.norm(gate_pose - gate_translation) <= float(min_dist):
-                    too_close = True
-                    break
-
-        self.gate_poses.append(gate_translation)
-
-        ''' Randomly rotate the gate horizontally, around the Z-axis '''
-        gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
-        model = Matrix44.from_translation(gate_translation) * gate_rotation
-        # With respect to the camera, for the annotation
-        gate_orientation = Matrix33(self.drone_pose.orientation) * Matrix33(gate_rotation)
-        gate_orientation = Quaternion.from_matrix(gate_orientation)
-
+    def render_gate(self, view, min_dist, gate):
+        model = gate['model']
+        gate_translation = gate['translation']
+        gate_orientation = gate['orientation']
         # Model View Projection matrix
         mvp = self.projection * view * model
 
@@ -277,8 +290,8 @@ class SceneRenderer:
         gate_normal = None
         min_prox = None
         # Render at least one gate
-        for i in range(random.randint(1, max_gates)):
-            vao, model, translation, rotation = self.render_gate(view, min_dist)
+        for gate in self.gates:
+            vao, model, translation, rotation = self.render_gate(view, min_dist, gate)
             center, proximity = self.compute_camera_proximity(view, model)
             # Pick the target gate: the closest to the camera
             if min_prox is None or proximity < min_prox:

@@ -76,7 +76,8 @@ class DatasetFactory:
         if self.render_perspective:
             self.verbose = True
         self.background_dataset = Dataset(args.dataset, args.seed)
-        if not self.background_dataset.load(self.count, args.annotations):
+        if not self.background_dataset.load(self.count, args.annotations,
+                                            randomize=False):
             print("[!] Could not load dataset!")
             sys.exit(1)
         self.generated_dataset = Dataset(args.destination, max=100)

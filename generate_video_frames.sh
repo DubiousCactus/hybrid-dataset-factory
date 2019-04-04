@@ -1,0 +1,1 @@
+python3 dataset_factory.py data/gate.obj base_dataset/ceiling_light/real_flight base_dataset/ceiling_light/real_flight/annotations.csv output_dataset/ --camera data/camera_calibration_params.yaml  --count 16399 --seed 123456 --res 340x255
