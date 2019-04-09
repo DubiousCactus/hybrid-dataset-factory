@@ -277,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument('--min-dist', dest='min_dist', type=float, help='the\
                         minimum distance between each gate, in meter',
                         default=3.5)
-    parser.add_argument('--oos', dest='oos_percentage', default=0.1,
+    parser.add_argument('--oos', dest='oos_percentage', default=0.15,
                         type=float, help='the out-of-screen acceptance margin'
                         ' for the gate center, in image frame percentage')
 

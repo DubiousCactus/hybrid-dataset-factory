@@ -190,7 +190,7 @@ class SceneRenderer:
         # Return if the camera is within 50cm of the gate, because it's not
         # visible
         mesh_center = model * mesh['center']
-        if np.linalg.norm(mesh_center - self.drone_pose.translation)/2 <= 0.5:
+        if np.linalg.norm(mesh_center - self.drone_pose.translation) <= 0.3:
             return [-1, -1]
 
         clip_space_gate_center = self.projection * (view *
@@ -275,13 +275,8 @@ class SceneRenderer:
             self.drone_pose.translation + (self.drone_pose.orientation *
                                            Vector3([1.0, 0.0, 0.0])),
             # up: up vector of the camera.
-            self.drone_pose.orientation * Vector3([0.0, 0.0, 1.0]),
+            self.drone_pose.orientation * Vector3([0.0, 0.0, 1.0])
         )
-
-        # Texturing
-        texture_image = Image.open(random.choice(self.textures))
-        texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
-        texture.build_mipmaps()
 
         # Framebuffers
         # Use 4 samples for MSAA anti-aliasing
@@ -304,7 +299,6 @@ class SceneRenderer:
         fbo1.use()
         self.context.enable(moderngl.DEPTH_TEST)
         self.context.clear(0, 0, 0, 0)
-        texture.use()
 
         gate_center = None
         gate_translation = None
@@ -322,6 +316,14 @@ class SceneRenderer:
                 gate_translation = translation
                 gate_rotation = rotation
                 gate_normal = self.compute_gate_normal(mesh, view, model)
+
+            # Texturing
+            texture_image = Image.open(random.choice(self.textures))
+            texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
+            texture.build_mipmaps()
+            texture.use()
+
+            # Rendering
             vao.render()
             vao.release()
 
