@@ -51,6 +51,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Save annotations
 [ ] Apply the distortion to the OpenGL projection
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
+[ ] Add variation to the mesh and texture
 [x] Motion blur
 [x] Anti alisasing
 [x] Ship it!
@@ -60,7 +61,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 
 class DatasetFactory:
     def __init__(self, args):
-        self.mesh_path = args.mesh
+        self.meshes_dir = args.meshes_dir
         self.nb_threads = args.threads
         self.count = args.nb_images
         self.cam_param = args.camera_parameters
@@ -92,7 +93,7 @@ class DatasetFactory:
     def run(self):
         print("[*] Generating dataset...")
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
-        projector = SceneRenderer(self.mesh_path, self.base_width, self.base_height,
+        projector = SceneRenderer(self.meshes_dir, self.base_width, self.base_height,
                                   self.world_boundaries, self.gate_center,
                                   self.cam_param, self.render_perspective,
                                   self.seed, self.oos_percentage)
@@ -119,7 +120,7 @@ class DatasetFactory:
                 save_thread.start()
                 self.projectors = []
                 for i in range(self.nb_threads):
-                    self.projectors.append(SceneRenderer(self.mesh_path,
+                    self.projectors.append(SceneRenderer(self.meshes_dir,
                                                     self.base_width,
                                                     self.base_height,
                                                     self.world_boundaries, self.gate_center,
@@ -244,7 +245,8 @@ if __name__ == "__main__":
         description='Generate a hybrid synthetic dataset of projections of a \
         given 3D model, in random positions and orientations, onto randomly \
         selected background images from a given dataset.')
-    parser.add_argument('mesh', help='the 3D mesh to project', type=str)
+    parser.add_argument('meshesh_dir', help='the 3D meshes directory containing'
+                        ' the models to project (along with textures)', type=str)
     parser.add_argument('dataset', help='the path to the background images \
                         dataset', type=str)
     parser.add_argument('annotations', help='the path to the CSV annotations\

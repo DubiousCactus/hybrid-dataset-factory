@@ -17,6 +17,7 @@ import numpy as np
 import moderngl
 import random
 import yaml
+import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
 from moderngl.ext.obj import Obj
@@ -24,7 +25,7 @@ from PIL import Image
 
 
 class SceneRenderer:
-    def __init__(self, mesh_path: str, width: int, height: int,
+    def __init__(self, meshes_dir: str, width: int, height: int,
                  world_boundaries, gate_center: Vector3, camera_parameters,
                  render_perspective=False, seed=None, oos_percentage=0.05):
         if seed:
@@ -32,7 +33,7 @@ class SceneRenderer:
         else:
             random.seed()
         self.render_perspective = render_perspective
-        self.mesh = Obj.open(mesh_path)
+        self.meshes, self.textures = self.load_meshes_and_textures(meshes_dir)
         self.width = width
         self.height = height
         self.gate_center = gate_center
@@ -44,6 +45,18 @@ class SceneRenderer:
             except yaml.YAMLError as exc:
                 raise Exception(exc)
         self.setup_opengl()
+
+    def load_meshes_and_textures(self, path):
+        meshes, textures = [], []
+
+        for file in os.listdir(path):
+            if os.path.isfile(file):
+                if file.endswith('.obj'):
+                    meshes.append(Obj.open(file))
+                elif file.endswith('.png') or file.endswith('.jpg'):
+                    textures.append(file)
+
+        return meshes, textures
 
     def compute_boundaries(self, world_boundaries):
         return  {
@@ -117,7 +130,7 @@ class SceneRenderer:
         prog['Mvp'].write(mvp.astype('f4').tobytes())
 
         # Vertex Buffer and Vertex Array
-        vbo = self.context.buffer(self.mesh.pack())
+        vbo = self.context.buffer(random.choice(self.meshes).pack())
         vao = self.context.simple_vertex_array(prog, vbo, *['in_vert', 'in_text', 'in_norm'])
 
         return vao, model, gate_translation, gate_orientation
@@ -243,7 +256,7 @@ class SceneRenderer:
         )
 
         # Texturing
-        texture_image = Image.open('data/orange_texture.jpg')
+        texture_image = Image.open(random.choice(self.textures))
         texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
         texture.build_mipmaps()
 
