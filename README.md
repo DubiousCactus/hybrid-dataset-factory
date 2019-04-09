@@ -155,5 +155,6 @@ The following Python3 packages are required (using an Anaconda environment is re
 - [x] Save annotations
 - [ ] Apply the distortion to the OpenGL projection
 - [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
+- [x] Add variation to the mesh and texture
 - [x] Motion blur
 - [x] MSAA anti alisasing
