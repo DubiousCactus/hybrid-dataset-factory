@@ -86,17 +86,16 @@ class DatasetFactory:
         self.sample_no = 0
         self.visible_gates = 0
 
-    def set_mesh_parameters(self, boundaries, gate_center):
+    def set_world_parameters(self, boundaries):
         self.world_boundaries = boundaries
-        self.gate_center = gate_center
 
     def run(self):
         print("[*] Generating dataset...")
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
         projector = SceneRenderer(self.meshes_dir, self.base_width, self.base_height,
-                                  self.world_boundaries, self.gate_center,
-                                  self.cam_param, self.render_perspective,
-                                  self.seed, self.oos_percentage)
+                                  self.world_boundaries, self.cam_param,
+                                  self.render_perspective, self.seed,
+                                  self.oos_percentage)
         save_thread.start()
         for i in tqdm(range(self.count),
                       unit="img", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"):
@@ -139,15 +138,10 @@ class DatasetFactory:
         background = self.background_dataset.get()
         projector.set_drone_pose(background.annotations)
         projection, annotations = projector.generate(min_dist=self.min_dist, max_gates=self.max_gates)
-        projection.save("proj.png")
         projection_blurred = self.apply_motion_blur(projection,
                                                     amount=self.get_blur_amount(background.image()))
-        Image.fromarray(projection_blurred).save("proj_blur.png")
         projection_noised = self.add_noise(projection_blurred)
-        projection_noised.save("proj_noised.png")
-        background.image().save('bg.png')
         output = self.combine(projection_noised, background.image())
-        output.save('output_clean.png')
         gate_center = self.scale_coordinates(annotations['gate_center_img_frame'], output.size)
         gate_visible = (gate_center[0] >=0 and gate_center[0] <=
                         output.size[0]) and (gate_center[1] >= 0 and
@@ -158,7 +152,9 @@ class DatasetFactory:
         if self.verbose:
             if gate_visible:
                 self.draw_gate_center(output, gate_center)
-                self.draw_gate_normal(output, gate_center, annotations['gate_normal'])
+                normal = self.scale_coordinates(annotations['gate_normal'],
+                                                output.size)
+                self.draw_gate_normal(output, gate_center, normal)
 
             self.draw_image_annotations(output, annotations)
 
@@ -245,7 +241,7 @@ if __name__ == "__main__":
         description='Generate a hybrid synthetic dataset of projections of a \
         given 3D model, in random positions and orientations, onto randomly \
         selected background images from a given dataset.')
-    parser.add_argument('meshesh_dir', help='the 3D meshes directory containing'
+    parser.add_argument('meshes_dir', help='the 3D meshes directory containing'
                         ' the models to project (along with textures)', type=str)
     parser.add_argument('dataset', help='the path to the background images \
                         dataset', type=str)
@@ -286,8 +282,7 @@ if __name__ == "__main__":
                         ' for the gate center, in image frame percentage')
 
     datasetFactory = DatasetFactory(parser.parse_args())
-    datasetFactory.set_mesh_parameters(
+    datasetFactory.set_world_parameters(
         {'x': 10, 'y': 10}, # Real world boundaries in meters (relative to the mesh's scale)
-        Vector3([0.0, 0.0, 2.2]) # Gate center: figure this out yourself
     )
     datasetFactory.run()

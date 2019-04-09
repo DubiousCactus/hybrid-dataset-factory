@@ -26,8 +26,8 @@ from PIL import Image
 
 class SceneRenderer:
     def __init__(self, meshes_dir: str, width: int, height: int,
-                 world_boundaries, gate_center: Vector3, camera_parameters,
-                 render_perspective=False, seed=None, oos_percentage=0.05):
+                 world_boundaries, camera_parameters, render_perspective=False,
+                 seed=None, oos_percentage=0.05):
         if seed:
             random.seed(seed)
         else:
@@ -36,7 +36,6 @@ class SceneRenderer:
         self.meshes, self.textures = self.load_meshes_and_textures(meshes_dir)
         self.width = width
         self.height = height
-        self.gate_center = gate_center
         self.boundaries = self.compute_boundaries(world_boundaries)
         self.out_of_screen_margin = oos_percentage
         with open(camera_parameters, 'r') as cam_file:
@@ -47,15 +46,39 @@ class SceneRenderer:
         self.setup_opengl()
 
     def load_meshes_and_textures(self, path):
-        meshes, textures = [], []
+        meshes, textures = {}, []
+        mesh_attributes = {}
+
+        try:
+            with open(os.path.join(path, "config.yaml"), "r") as config:
+                try:
+                    mesh_attributes = yaml.safe_load(config)
+                except yaml.YAMLError as exc:
+                    raise Exception(exc)
+        except EnvironmentError as e:
+            print("[!] Could not load mesh attributes file:\
+                  {}".format(os.path.join(path, "config.yaml")))
+            raise EnvironmentError(e)
 
         for file in os.listdir(path):
-            if os.path.isfile(file):
+            if os.path.isfile(os.path.join(path, file)):
                 if file.endswith('.obj'):
-                    meshes.append(Obj.open(file))
-                elif file.endswith('.png') or file.endswith('.jpg'):
-                    textures.append(file)
+                    file_name = os.path.split(file)[-1]
+                    if file_name not in mesh_attributes:
+                        print("[!] Could not find mesh attributes for\
+                              {}".format(file_name))
+                        continue
+                    try:
+                        obj_file = Obj.open(os.path.join(path, file_name))
+                    except Exception as e:
+                        raise Exception(e)
 
+                    meshes[file_name] = {
+                        'obj': obj_file,
+                        'center': Vector3(mesh_attributes[file_name])
+                    }
+                elif file.endswith('.png') or file.endswith('.jpg'):
+                    textures.append(os.path.join(path, file))
         return meshes, textures
 
     def compute_boundaries(self, world_boundaries):
@@ -70,8 +93,7 @@ class SceneRenderer:
 
     def setup_opengl(self):
         self.context = moderngl.create_standalone_context()
-        camera_intrinsics = [
-            self.camera_parameters['camera_matrix']['data'][0:3],
+        camera_intrinsics = [ self.camera_parameters['camera_matrix']['data'][0:3],
             self.camera_parameters['camera_matrix']['data'][3:6],
             self.camera_parameters['camera_matrix']['data'][6::]
         ]
@@ -130,17 +152,18 @@ class SceneRenderer:
         prog['Mvp'].write(mvp.astype('f4').tobytes())
 
         # Vertex Buffer and Vertex Array
-        vbo = self.context.buffer(random.choice(self.meshes).pack())
+        mesh = self.meshes[random.choice(list(self.meshes.keys()))]
+        vbo = self.context.buffer(mesh['obj'].pack())
         vao = self.context.simple_vertex_array(prog, vbo, *['in_vert', 'in_text', 'in_norm'])
 
-        return vao, model, gate_translation, gate_orientation
+        return mesh, vao, model, gate_translation, gate_orientation
 
     '''
         Converting the gate normal's world coordinates to image coordinates
     '''
     # TODO: Refactor the next two functions
-    def compute_gate_normal(self, view, model):
-        gate_normal = model * (self.gate_center + Vector3([0, 0.5, 0]))
+    def compute_gate_normal(self, mesh, view, model):
+        gate_normal = model * (mesh['center'] + Vector3([0, 0.5, 0]))
         clip_space_gate_normal = self.projection * (view *
                                                     Vector4.from_vector3(gate_normal,
                                                                          w=1.0))
@@ -163,15 +186,15 @@ class SceneRenderer:
     '''
         Converting the gate center's world coordinates to image coordinates
     '''
-    def compute_gate_center(self, view, model):
+    def compute_gate_center(self, mesh, view, model):
         # Return if the camera is within 50cm of the gate, because it's not
         # visible
-        gate_center = model * self.gate_center
-        if np.linalg.norm(gate_center - self.drone_pose.translation)/2 <= 0.5:
+        mesh['center'] = model * mesh['center']
+        if np.linalg.norm(mesh['center'] - self.drone_pose.translation)/2 <= 0.5:
             return [-1, -1]
 
         clip_space_gate_center = self.projection * (view *
-                                                    Vector4.from_vector3(gate_center,
+                                                    Vector4.from_vector3(mesh['center'],
                                                                          w=1.0))
         if clip_space_gate_center.w != 0:
             normalized_device_coordinate_space_gate_center\
@@ -236,12 +259,12 @@ class SceneRenderer:
     '''
         Returns the Euclidean distance of the gate to the camera
     '''
-    def compute_camera_proximity(self, view, model):
-        coords = self.compute_gate_center(view, model)
+    def compute_camera_proximity(self, mesh, view, model):
+        coords = self.compute_gate_center(mesh, view, model)
         if coords[0] < 0 or coords[0] > self.width or coords[1] < 0 or coords[1] > self.height:
             return coords, 1000
         else:
-            return coords, np.linalg.norm((model * self.gate_center) - self.drone_pose.translation)
+            return coords, np.linalg.norm((model * mesh['center']) - self.drone_pose.translation)
 
     def generate(self, min_dist=2.0, max_gates=6):
         # Camera view matrix
@@ -290,15 +313,15 @@ class SceneRenderer:
         min_prox = None
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
-            vao, model, translation, rotation = self.render_gate(view, min_dist)
-            center, proximity = self.compute_camera_proximity(view, model)
+            mesh, vao, model, translation, rotation = self.render_gate(view, min_dist)
+            center, proximity = self.compute_camera_proximity(mesh, view, model)
             # Pick the target gate: the closest to the camera
             if min_prox is None or proximity < min_prox:
                 min_prox = proximity
                 gate_center = center
                 gate_translation = translation
                 gate_rotation = rotation
-                gate_normal = self.compute_gate_normal(view, model)
+                gate_normal = self.compute_gate_normal(mesh, view, model)
             vao.render()
             vao.release()
 
