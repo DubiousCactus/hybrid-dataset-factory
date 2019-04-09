@@ -189,12 +189,12 @@ class SceneRenderer:
     def compute_gate_center(self, mesh, view, model):
         # Return if the camera is within 50cm of the gate, because it's not
         # visible
-        mesh['center'] = model * mesh['center']
-        if np.linalg.norm(mesh['center'] - self.drone_pose.translation)/2 <= 0.5:
+        mesh_center = model * mesh['center']
+        if np.linalg.norm(mesh_center - self.drone_pose.translation)/2 <= 0.5:
             return [-1, -1]
 
         clip_space_gate_center = self.projection * (view *
-                                                    Vector4.from_vector3(mesh['center'],
+                                                    Vector4.from_vector3(mesh_center,
                                                                          w=1.0))
         if clip_space_gate_center.w != 0:
             normalized_device_coordinate_space_gate_center\

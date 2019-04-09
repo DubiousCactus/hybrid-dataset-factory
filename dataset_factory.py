@@ -51,7 +51,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Save annotations
 [ ] Apply the distortion to the OpenGL projection
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
-[ ] Add variation to the mesh and texture
+[x] Add variation to the mesh and texture
 [x] Motion blur
 [x] Anti alisasing
 [x] Ship it!
