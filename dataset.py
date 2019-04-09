@@ -155,5 +155,5 @@ class Dataset:
         self.output_csv.close()
 
     def get_image_size(self):
-        print("[*] Using {}x{} resolution".format(self.width, self.height))
+        print("[*] Using {}x{} base resolution".format(self.width, self.height))
         return (self.width, self.height)

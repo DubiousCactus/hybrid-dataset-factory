@@ -91,6 +91,8 @@ class DatasetFactory:
 
     def run(self):
         print("[*] Generating dataset...")
+        print("[*] Using {}x{} target resolution".format(self.target_width,
+                                                         self.target_height))
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
         projector = SceneRenderer(self.meshes_dir, self.base_width, self.base_height,
                                   self.world_boundaries, self.cam_param,
