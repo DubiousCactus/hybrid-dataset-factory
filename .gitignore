@@ -1,5 +1,6 @@
 .idea/
 background_dataset/
+base_dataset/
 output_dataset/
 output.png
 __pycache__/
