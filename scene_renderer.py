@@ -20,7 +20,7 @@ import yaml
 import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
-from ModernGL.ext.obj import Obj
+from moderngl.ext.obj import Obj
 from PIL import Image
 
 
@@ -206,7 +206,7 @@ class SceneRenderer:
     '''
         Converting the gate center's world coordinates to image coordinates
     '''
-    def compute_gate_center(self, mesh, view, model):
+    def compute_gate_center(self, mesh, view, model, gate_dist):
         # Return if the camera is within 50cm of the gate, because it's not
         # visible
         mesh_center = model * mesh['center']
@@ -241,7 +241,10 @@ class SceneRenderer:
             if image_frame_gate_center[i] <= 0:
                 offset = (-image_frame_gate_center[i]) / (self.width if i == 0
                                                           else self.height)
-                if offset <= self.out_of_screen_margin:
+                # TODO: Make this dirty hack cleaner
+                if gate_dist < 3 and  offset <= 0.3:
+                    image_frame_gate_center[i] = 1
+                elif gate_dist <= 7 and offset <= self.out_of_screen_margin:
                     image_frame_gate_center[i] = 1
 
         return image_frame_gate_center
@@ -280,11 +283,12 @@ class SceneRenderer:
         Returns the Euclidean distance of the gate to the camera
     '''
     def compute_camera_proximity(self, mesh, view, model):
-        coords = self.compute_gate_center(mesh, view, model)
+        dist = np.linalg.norm((model * mesh['center']) - self.drone_pose.translation)
+        coords = self.compute_gate_center(mesh, view, model, dist)
         if coords[0] < 0 or coords[0] > self.width or coords[1] < 0 or coords[1] > self.height:
             return coords, 1000
         else:
-            return coords, np.linalg.norm((model * mesh['center']) - self.drone_pose.translation)
+            return coords, dist
 
     def generate(self, min_dist=2.0, max_gates=6):
         # Camera view matrix
@@ -328,9 +332,9 @@ class SceneRenderer:
         self.context.clear(0, 0, 0, 0)
 
         gate_center = None
-        gate_translation = None
         gate_rotation = None
         gate_normal = None
+        gate_distance = None
         min_prox = None
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
@@ -340,8 +344,9 @@ class SceneRenderer:
             if min_prox is None or proximity < min_prox:
                 min_prox = proximity
                 gate_center = center
-                gate_translation = translation
                 gate_rotation = rotation
+                gate_distance = np.linalg.norm(self.drone_pose.translation -
+                                               translation)
                 gate_normal = self.compute_gate_normal(mesh, view, model)
             # Rendering
             vao.render()
@@ -360,8 +365,8 @@ class SceneRenderer:
 
         annotations = {
             'gate_center_img_frame': gate_center,
-            'gate_position': gate_translation,
             'gate_rotation': gate_rotation,
+            'gate_distance': gate_distance,
             'gate_normal': gate_normal,
             'drone_pose': self.drone_pose.translation,
             'drone_orientation':self.drone_pose.orientation

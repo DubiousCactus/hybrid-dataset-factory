@@ -142,7 +142,7 @@ The following Python3 packages are required (using an Anaconda environment is re
 - [x] Compute the center of the gate
 - [x] Compute the presence of the gate in the image frame
 - [x] Convert world coordinates to image coordinates
-- [ ] Compute the distance to the gate (needed?)
+- [x] Compute the distance to the gate (needed?)
 - [x] Perspective projection for visualization
 - [x] Camera calibration (use the correct parameters)
 - [x] Project on transparent background

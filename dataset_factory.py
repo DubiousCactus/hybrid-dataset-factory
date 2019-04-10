@@ -38,7 +38,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Compute the center of the gate
 [x] Compute the presence of the gate in the image frame
 [x] Convert world coordinates to image coordinates
-[?] Compute the distance to the gate
+[x] Compute the distance to the gate
 [x] Perspective projection for visualization
 [x] Camera calibration (use the correct parameters)
 [x] Project on transparent background
@@ -167,6 +167,7 @@ class DatasetFactory:
         self.generated_dataset.put(
             AnnotatedImage(output, index, SyntheticAnnotations(gate_center,
                                                                annotations['gate_rotation'],
+                                                               annotations['gate_distance'],
                                                                gate_visible)))
 
     # Scale to target width/height
@@ -234,8 +235,8 @@ class DatasetFactory:
         gate_draw.line((center[0], center[1], normal_gt[0], normal_gt[1]), fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        text = "gate_center_image_frame: {}\ngate_position: {}\ngate_rotation: {}\ndrone_pose: {}\ndrone_orientation:{}".format(
-            annotations['gate_center_img_frame'], annotations['gate_position'],
+        text = "gate_center_image_frame: {}\ngate_distance: {}\ngate_rotation: {}\ndrone_pose: {}\ndrone_orientation:{}".format(
+            annotations['gate_center_img_frame'], annotations['gate_distance'],
                 annotations['gate_rotation'], annotations['drone_pose'],
                 annotations['drone_orientation'])
         text_draw = ImageDraw.Draw(img)
