@@ -48,6 +48,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Add background gates
 [x] Compute gate visibility percentage over the whole dataset
 [x] Compute gate orientation with respect to the camera
+[x] Ensure that the gate is always oriented towards the camera (for the annotation)
 [x] Save annotations
 [ ] Apply the distortion to the OpenGL projection
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)

@@ -131,7 +131,7 @@ class Dataset:
             self.output_csv = open(os.path.join(self.path,
                                                 'annotations.csv'), 'w')
             self.output_csv.write(
-                "frame,gate_center_x,gate_center_y,gate_rotation_x,gate_rotation_y,gate_rotation_z,quaternion_w,gate_visible\n")
+                "frame,gate_center_x,gate_center_y,gate_rotation_x,gate_rotation_y,gate_rotation_z,gate_rotation_w,gate_visible\n")
             self.saving = True
             if not os.path.isdir(os.path.join(self.path, 'images')):
                 os.mkdir(os.path.join(self.path, 'images'))

@@ -134,11 +134,31 @@ class SceneRenderer:
 
         ''' Randomly rotate the gate horizontally, around the Z-axis '''
         gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
+
+        # Trace a line along the gate's x axis. If the camera is behind
+        # that line, rotate the gate by Pi (this is done by simply computing
+        # the cross product between the line crossing the gate in the x-axis,
+        # and the camera position: the resulting vector's z component is either
+        # negative or positive depending on the camera's position relative to
+        # that line).
+        leftmost_point = Matrix44.from_translation(gate_translation)\
+            * Vector4.from_vector3((Matrix33(gate_rotation)\
+                                    * Vector3([-20, 0, 0])), w=1)
+        rightmost_point = Matrix44.from_translation(gate_translation)\
+            * Vector4.from_vector3((Matrix33(gate_rotation)\
+                                    * Vector3([20, 0, 0])), w=1)
+        leftmost_point = Vector3(leftmost_point.xyz)
+        rightmost_point = Vector3(rightmost_point.xyz)
+        cross_product = (rightmost_point -
+                         leftmost_point).cross(self.drone_pose.translation -
+                                               leftmost_point)
+        if cross_product.z < 0:
+            gate_rotation = Quaternion.from_z_rotation(np.pi) * gate_rotation
+
         model = Matrix44.from_translation(gate_translation) * gate_rotation
         # With respect to the camera, for the annotation
         gate_orientation = Matrix33(self.drone_pose.orientation) * Matrix33(gate_rotation)
         gate_orientation = Quaternion.from_matrix(gate_orientation)
-
         # Model View Projection matrix
         mvp = self.projection * view * model
 
