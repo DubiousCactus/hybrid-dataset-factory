@@ -92,6 +92,8 @@ class DatasetFactory:
 
     def run(self):
         print("[*] Generating dataset...")
+        print("[*] Using {}x{} target resolution".format(self.target_width,
+                                                         self.target_height))
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
         projector = SceneRenderer(self.meshes_dir, self.base_width, self.base_height,
                                   self.world_boundaries, self.cam_param,
@@ -139,16 +141,19 @@ class DatasetFactory:
         background = self.background_dataset.get()
         projector.set_drone_pose(background.annotations)
         projection, annotations = projector.generate(min_dist=self.min_dist, max_gates=self.max_gates)
-        projection_blurred = self.apply_motion_blur(projection,
-                                                    amount=self.get_blur_amount(background.image()))
-        projection_noised = self.add_noise(projection_blurred)
-        output = self.combine(projection_noised, background.image())
-        gate_center = self.scale_coordinates(annotations['gate_center_img_frame'], output.size)
+        gate_center = self.scale_coordinates(annotations['gate_center_img_frame'], (self.target_width, self.target_height))
         gate_visible = (gate_center[0] >=0 and gate_center[0] <=
-                        output.size[0]) and (gate_center[1] >= 0 and
-                                             gate_center[1] <= output.size[1])
+                        self.target_width) and (gate_center[1] >= 0 and
+                                             gate_center[1] <= self.target_height)
+
         if gate_visible:
+            projection_blurred = self.apply_motion_blur(projection,
+                                                    amount=self.get_blur_amount(background.image()))
+            projection_noised = self.add_noise(projection_blurred)
+            projection = projection_noised
             self.visible_gates += 1
+
+        output = self.combine(projection, background.image())
 
         if self.verbose:
             if gate_visible:

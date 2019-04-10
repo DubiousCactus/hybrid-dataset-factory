@@ -20,7 +20,7 @@ import yaml
 import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
-from moderngl.ext.obj import Obj
+from ModernGL.ext.obj import Obj
 from PIL import Image
 
 
@@ -315,6 +315,13 @@ class SceneRenderer:
         depth_render_buffer = self.context.depth_renderbuffer((self.width, self.height))
         fbo2 = self.context.framebuffer(render_buffer, depth_render_buffer)
 
+        # Texturing
+        texture_image = Image.open(random.choice(self.textures))
+        texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
+        texture.build_mipmaps()
+        texture.use()
+
+
         # Rendering
         fbo1.use()
         self.context.enable(moderngl.DEPTH_TEST)
@@ -336,13 +343,6 @@ class SceneRenderer:
                 gate_translation = translation
                 gate_rotation = rotation
                 gate_normal = self.compute_gate_normal(mesh, view, model)
-
-            # Texturing
-            texture_image = Image.open(random.choice(self.textures))
-            texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
-            texture.build_mipmaps()
-            texture.use()
-
             # Rendering
             vao.render()
             vao.release()
@@ -357,11 +357,6 @@ class SceneRenderer:
         # Loading the image using Pillow
         img = Image.frombytes('RGBA', fbo2.size, fbo2.read(components=4,
                                                          alignment=1), 'raw', 'RGBA', 0, -1)
-
-        '''
-            Apply distortion using the camera parameters
-        '''
-        # TODO
 
         annotations = {
             'gate_center_img_frame': gate_center,
