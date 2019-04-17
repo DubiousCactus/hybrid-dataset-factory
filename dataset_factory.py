@@ -50,6 +50,7 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Compute gate orientation with respect to the camera
 [x] Ensure that the gate is always oriented towards the camera (for the annotation)
 [x] Save annotations
+[ ] Refactor DatasetFactory (create augentation class)
 [ ] Apply the distortion to the OpenGL projection
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 [x] Add variation to the mesh and texture
