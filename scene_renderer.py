@@ -79,9 +79,7 @@ class SceneRenderer:
                     }
                 elif file.endswith('.png') or file.endswith('.jpg'):
                     texture_image = Image.open(os.path.join(path, file))
-                    texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
-                    texture.build_mipmaps()
-                    textures.append(texture)
+                    textures.append(texture_image)
 
         return meshes, textures
 
@@ -331,6 +329,12 @@ class SceneRenderer:
         self.context.enable(moderngl.DEPTH_TEST)
         self.context.clear(0, 0, 0, 0)
 
+        # Texturing
+        texture_image = random.choice(self.textures)
+        texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
+        texture.build_mipmaps()
+        texture.use()
+
         gate_center = None
         gate_rotation = None
         gate_normal = None
@@ -348,10 +352,6 @@ class SceneRenderer:
                 gate_distance = np.linalg.norm(self.drone_pose.translation -
                                                translation)
                 gate_normal = self.compute_gate_normal(mesh, view, model)
-
-            # Texturing
-            random.choice(self.textures).use()
-
             # Rendering
             vao.render()
             vao.release()
@@ -384,6 +384,7 @@ class SceneRenderer:
         msaa_depth_render_buffer.release()
         render_buffer.release()
         depth_render_buffer.release()
+        texture.release()
         fbo1.release()
         fbo2.release()
 
