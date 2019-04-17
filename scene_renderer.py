@@ -167,7 +167,10 @@ class SceneRenderer:
         fragment_shader_source = open('data/shader.frag').read()
         prog = self.context.program(vertex_shader=vertex_shader_source,
                                          fragment_shader=fragment_shader_source)
-        prog['Light'].value = (0.0, 0.0, 4.0) # TODO
+        prog['Light'].value = (
+            random.uniform(-self.boundaries['x'], self.boundaries['x']),
+            random.uniform(-self.boundaries['y'], self.boundaries['y']),
+            random.uniform(2, 5))
         prog['Color'].value = (1.0, 1.0, 1.0, 0.25) # TODO
         prog['Mvp'].write(mvp.astype('f4').tobytes())
 
@@ -319,13 +322,6 @@ class SceneRenderer:
         depth_render_buffer = self.context.depth_renderbuffer((self.width, self.height))
         fbo2 = self.context.framebuffer(render_buffer, depth_render_buffer)
 
-        # Texturing
-        texture_image = Image.open(random.choice(self.textures))
-        texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
-        texture.build_mipmaps()
-        texture.use()
-
-
         # Rendering
         fbo1.use()
         self.context.enable(moderngl.DEPTH_TEST)
@@ -348,9 +344,17 @@ class SceneRenderer:
                 gate_distance = np.linalg.norm(self.drone_pose.translation -
                                                translation)
                 gate_normal = self.compute_gate_normal(mesh, view, model)
+
+            # Texturing
+            texture_image = Image.open(random.choice(self.textures))
+            texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
+            texture.build_mipmaps()
+            texture.use()
+
             # Rendering
             vao.render()
             vao.release()
+            texture.release()
 
         if self.render_perspective:
             vao_grid = self.render_perspective_grid(view)
@@ -382,7 +386,6 @@ class SceneRenderer:
         depth_render_buffer.release()
         fbo1.release()
         fbo2.release()
-        texture.release()
 
         return (img, annotations)
 
