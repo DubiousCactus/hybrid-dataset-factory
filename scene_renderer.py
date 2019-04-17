@@ -20,7 +20,7 @@ import yaml
 import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4, vector
-from moderngl.ext.obj import Obj
+from ModernGL.ext.obj import Obj
 from PIL import Image
 
 
@@ -33,7 +33,6 @@ class SceneRenderer:
         else:
             random.seed()
         self.render_perspective = render_perspective
-        self.meshes, self.textures = self.load_meshes_and_textures(meshes_dir)
         self.width = width
         self.height = height
         self.boundaries = self.compute_boundaries(world_boundaries)
@@ -44,6 +43,7 @@ class SceneRenderer:
             except yaml.YAMLError as exc:
                 raise Exception(exc)
         self.setup_opengl()
+        self.meshes, self.textures = self.load_meshes_and_textures(meshes_dir)
 
     def load_meshes_and_textures(self, path):
         meshes, textures = {}, []
@@ -78,7 +78,11 @@ class SceneRenderer:
                         'center': Vector3(mesh_attributes[file_name])
                     }
                 elif file.endswith('.png') or file.endswith('.jpg'):
-                    textures.append(os.path.join(path, file))
+                    texture_image = Image.open(os.path.join(path, file))
+                    texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
+                    texture.build_mipmaps()
+                    textures.append(texture)
+
         return meshes, textures
 
     def compute_boundaries(self, world_boundaries):
@@ -346,15 +350,11 @@ class SceneRenderer:
                 gate_normal = self.compute_gate_normal(mesh, view, model)
 
             # Texturing
-            texture_image = Image.open(random.choice(self.textures))
-            texture = self.context.texture(texture_image.size, 3, texture_image.tobytes())
-            texture.build_mipmaps()
-            texture.use()
+            random.choice(self.textures).use()
 
             # Rendering
             vao.render()
             vao.release()
-            texture.release()
 
         if self.render_perspective:
             vao_grid = self.render_perspective_grid(view)
