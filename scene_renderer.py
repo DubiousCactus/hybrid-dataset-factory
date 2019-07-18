@@ -66,10 +66,14 @@ class SceneRenderer:
                     file_name = os.path.split(file)[-1]
                     try:
                         obj_file = Obj.open(os.path.join(path, file_name))
-                        contour_obj_file = Obj.open(
+                        contour_obj_front_file = Obj.open(
                             os.path.join(path,
                                          file_name.split('_')[0]
-                                         + '_contour.obj'))
+                                         + '_contour_front.obj'))
+                        contour_obj_back_file = Obj.open(
+                            os.path.join(path,
+                                         file_name.split('_')[0]
+                                         + '_contour_back.obj'))
                         contour_png = Image.open(
                             os.path.join(path,
                                          file_name.split('_')[0]
@@ -82,7 +86,8 @@ class SceneRenderer:
 
                     meshes[file_name] = {
                         'obj': obj_file,
-                        'contour_obj': contour_obj_file,
+                        'contour_obj_front': contour_obj_front_file,
+                        'contour_obj_back': contour_obj_back_file,
                         'contour_texture': contour_texture,
                         'center': Vector3(mesh_attributes[file_name])
                     }
@@ -183,18 +188,23 @@ class SceneRenderer:
         frame_vbo = self.context.buffer(mesh['obj'].pack())
         frame_vao = self.context.simple_vertex_array(
             prog, frame_vbo, *['in_vert', 'in_text', 'in_norm'])
-        contour_vbo = self.context.buffer(mesh['contour_obj'].pack())
-        contour_vao = self.context.simple_vertex_array(
-            prog, contour_vbo, *['in_vert', 'in_text', 'in_norm'])
+        contour_front_vbo = self.context.buffer(mesh['contour_obj_front'].pack())
+        contour_front_vao = self.context.simple_vertex_array(
+            prog, contour_front_vbo, *['in_vert', 'in_text', 'in_norm'])
+        contour_back_vbo = self.context.buffer(mesh['contour_obj_back'].pack())
+        contour_back_vao = self.context.simple_vertex_array(
+            prog, contour_back_vbo, *['in_vert', 'in_text', 'in_norm'])
 
         prog['Color'].value = (random.uniform(0, 0.75),
                                random.uniform(0, 0.75),
                                random.uniform(0, 0.75))
         prog['UseTexture'].value = False
         frame_vao.render()
+        prog['Color'].value = (1.0, 1.0, 1.0)
+        contour_back_vao.render()
         mesh['contour_texture'].use()
         prog['UseTexture'].value = True
-        contour_vao.render()
+        contour_front_vao.render()
 
         return mesh, model, gate_translation, gate_orientation
 
