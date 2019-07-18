@@ -169,19 +169,19 @@ class SceneRenderer:
         prog['Light1'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(5, 6))
+            random.uniform(4, 7))
         prog['Light2'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(5, 6))
+            random.uniform(4, 7))
         prog['Light3'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(5, 6))
+            random.uniform(4, 7))
         prog['Light4'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(5, 6))
+            random.uniform(4, 7))
         prog['MVP'].write(mvp.astype('f4').tobytes())
 
         mesh = self.meshes[random.choice(list(self.meshes.keys()))]
@@ -195,9 +195,9 @@ class SceneRenderer:
         contour_back_vao = self.context.simple_vertex_array(
             prog, contour_back_vbo, *['in_vert', 'in_text', 'in_norm'])
 
-        prog['Color'].value = (random.uniform(0, 0.75),
-                               random.uniform(0, 0.75),
-                               random.uniform(0, 0.75))
+        prog['Color'].value = (random.uniform(0, 0.5),
+                               random.uniform(0, 0.5),
+                               random.uniform(0, 0.5))
         prog['UseTexture'].value = False
         frame_vao.render()
         prog['Color'].value = (1.0, 1.0, 1.0)
