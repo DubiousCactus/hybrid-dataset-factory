@@ -1,6 +1,6 @@
 #version 330
 
-uniform mat4 Mvp;
+uniform mat4 MVP;
 
 in vec3 in_vert;
 in vec3 in_norm;
@@ -14,5 +14,5 @@ void main() {
 	v_vert = in_vert;
 	v_norm = in_norm;
 	v_text = in_text;
-	gl_Position = Mvp * vec4(v_vert, 1.0);
+	gl_Position = MVP * vec4(v_vert, 1.0);
 }
