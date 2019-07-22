@@ -76,7 +76,8 @@ class SceneRenderer:
                         contour_png = Image.open(
                             os.path.join(path,
                                          file_name.split('_')[0]
-                                         + '.png'))
+                                         +
+                                         '.png')).transpose(Image.FLIP_TOP_BOTTOM)
                         contour_texture = self.context.texture(
                             contour_png.size, 3, contour_png.tobytes())
                         contour_texture.build_mipmaps()
@@ -217,6 +218,9 @@ class SceneRenderer:
         else:  # Clipped
             nds_vector = clip_space_vector.xyz
 
+        if nds_vector.z >= 1:
+            return [-1, -1]
+
         viewOffset = 0
         image_frame_vector =\
             ((np.array(nds_vector.xy) + 1.0) /
@@ -238,14 +242,11 @@ class SceneRenderer:
         Converting the gate center's world coordinates to image coordinates
     '''
     def compute_gate_center(self, mesh, view, model, gate_dist):
-        # Return if the camera is within 0.3cm of the gate, because it's not
+        # Return if the camera is within 0.6cm of the gate, because it's not
         # visible
         mesh_center = model * mesh['center']
-        if np.linalg.norm(mesh_center - self.drone_pose.translation) <= 0.3:
+        if np.linalg.norm(mesh_center - self.drone_pose.translation) <= 0.6:
             return [-1, -1]
-
-        # if normalized_device_coordinate_space_gate_center.z >= 1:
-        #     return [-1, -1]
 
         return self.project_to_img_frame(mesh_center, view)
 
@@ -298,28 +299,53 @@ class SceneRenderer:
         outside.  Otherwise, the gate is not visible.
     '''
     def compute_bbox_coords(self, model, mesh, view):
-        center = model * mesh['center']
+        center = mesh['center']
         world_corners = {
-            'min': Vector3([
+            'top_left': model * Vector3([
                 center[0] - mesh['width']/2,
                 center[1],
-                center[2] - mesh['height']/2
+                center[2] + mesh['height']/2
             ]),
-            'max': Vector3([
+            'top_right': model * Vector3([
                 center[0] + mesh['width']/2,
                 center[1],
                 center[2] + mesh['height']/2
+            ]),
+            'bottom_right': model * Vector3([
+                center[0] + mesh['width']/2,
+                center[1],
+                center[2] - mesh['height']/2
+            ]),
+            'bottom_left': model * Vector3([
+                center[0] - mesh['width']/2,
+                center[1],
+                center[2] - mesh['height']/2
             ])
+
         }
-        image_corners = {}
         hidden_corners = 0
+        left = right = top = bottom = None
 
         for key, value in world_corners.items():
             img_coords = self.project_to_img_frame(value, view)
-            if (img_coords[0] < 0 or img_coords[0] > self.width
-                    or img_coords[1] < 0 or img_coords[1] > self.height):
+            if left is None or (img_coords[0] < left['x']):
+                left = {'x': img_coords[0], 'y': img_coords[1]}
+            if top is None or (img_coords[1] < top['y']):
+                top = {'x': img_coords[0], 'y': img_coords[1]}
+            if bottom is None or (img_coords[1] > bottom['y']):
+                bottom = {'x': img_coords[0], 'y': img_coords[1]}
+            if right is None or (img_coords[0] > right['x']):
+                right = {'x': img_coords[0], 'y': img_coords[1]}
+
+        image_corners = {
+            'min': [left['x'], top['y']],
+            'max': [right['x'], bottom['y']]
+        }
+
+        for coords in image_corners.values():
+            if (coords[0] < 0 or coords[0] > self.width
+                    or coords[1] < 0 or coords[1] > self.height):
                 hidden_corners += 1
-            image_corners[key] = img_coords
 
         if hidden_corners > 1:
             return {}

@@ -247,7 +247,7 @@ class DatasetFactory:
         return cv2.filter2D(cv_img, -1, kernel)
 
     def draw_bounding_boxes(self, img, bboxes, closest_gate, color="green",
-                            closest_color="red"):
+                            closest_color="yellow"):
         gate_draw = ImageDraw.Draw(img)
         for i, bbox in enumerate(bboxes):
             c = color
@@ -255,7 +255,7 @@ class DatasetFactory:
                 c = closest_color
             gate_draw.rectangle([(bbox['min'][0], bbox['min'][1]),
                                  (bbox['max'][0], bbox['max'][1])],
-                                outline=c)
+                                outline=c, width=3)
 
     def draw_gate_normal(self, img, center, normal_gt, color="red"):
         gate_draw = ImageDraw.Draw(img)
