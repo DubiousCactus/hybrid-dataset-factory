@@ -48,7 +48,6 @@ class SceneRenderer:
     def load_meshes_and_textures(self, path):
         meshes = {}
         mesh_attributes = {}
-
         try:
             with open(os.path.join(path, "config.yaml"), "r") as config:
                 try:
@@ -85,11 +84,13 @@ class SceneRenderer:
                         raise Exception(e)
 
                     meshes[file_name] = {
-                        'obj': obj_file,
+                        'center': Vector3(mesh_attributes[file_name]['center']),
+                        'height': mesh_attributes[file_name]['height'],
+                        'width': mesh_attributes[file_name]['width'],
                         'contour_obj_front': contour_obj_front_file,
                         'contour_obj_back': contour_obj_back_file,
                         'contour_texture': contour_texture,
-                        'center': Vector3(mesh_attributes[file_name])
+                        'obj': obj_file
                     }
 
         if len(meshes.items()) is 0:
@@ -200,7 +201,7 @@ class SceneRenderer:
                                random.uniform(0, 0.5))
         prog['UseTexture'].value = False
         frame_vao.render()
-        prog['Color'].value = (1.0, 1.0, 1.0)
+        prog['Color'].value = (0.9, 0.9, 0.9)
         contour_back_vao.render()
         mesh['contour_texture'].use()
         prog['UseTexture'].value = True
@@ -208,77 +209,46 @@ class SceneRenderer:
 
         return mesh, model, gate_translation, gate_orientation
 
-    '''
-        Converting the gate normal's world coordinates to image coordinates
-    '''
-    # TODO: Refactor the next two functions
-    def compute_gate_normal(self, mesh, view, model):
-        gate_normal = model * (mesh['center'] + Vector3([0, 0.5, 0]))
-        clip_space_gate_normal = self.projection * (view *
-                                                    Vector4.from_vector3(
-                                                        gate_normal,
-                                                        w=1.0))
-        if clip_space_gate_normal.w != 0:
-            normalized_device_coordinate_space_gate_normal\
-                = Vector3(clip_space_gate_normal.xyz) / clip_space_gate_normal.w
+    def project_to_img_frame(self, vector, viewMatrix):
+        clip_space_vector = self.projection * (
+            viewMatrix * Vector4.from_vector3(vector, w=1.0))
+        if clip_space_vector.w != 0:
+            nds_vector = Vector3(clip_space_vector.xyz) / clip_space_vector.w
         else:  # Clipped
-            normalized_device_coordinate_space_gate_normal = clip_space_gate_normal.xyz
+            nds_vector = clip_space_vector.xyz
 
         viewOffset = 0
-        image_frame_gate_normal =\
-            ((np.array(normalized_device_coordinate_space_gate_normal.xy) + 1.0) /
+        image_frame_vector =\
+            ((np.array(nds_vector.xy) + 1.0) /
              2.0) * np.array([self.width, self.height]) + viewOffset
 
         # Translate from bottom-left to top-left
-        image_frame_gate_normal[1] = self.height - image_frame_gate_normal[1]
+        image_frame_vector[1] = self.height - image_frame_vector[1]
 
-        return image_frame_gate_normal
+        return image_frame_vector
+
+    '''
+        Converting the gate normal's world coordinates to image coordinates
+    '''
+    def compute_gate_normal(self, mesh, view, model):
+        gate_normal = model * (mesh['center'] + Vector3([0, 0.5, 0]))
+        return self.project_to_img_frame(gate_normal, view)
 
     '''
         Converting the gate center's world coordinates to image coordinates
     '''
     def compute_gate_center(self, mesh, view, model, gate_dist):
-        # Return if the camera is within 50cm of the gate, because it's not
+        # Return if the camera is within 0.3cm of the gate, because it's not
         # visible
         mesh_center = model * mesh['center']
         if np.linalg.norm(mesh_center - self.drone_pose.translation) <= 0.3:
             return [-1, -1]
 
-        clip_space_gate_center = self.projection * (view *
-                                                    Vector4.from_vector3(mesh_center,
-                                                                         w=1.0))
-        if clip_space_gate_center.w != 0:
-            normalized_device_coordinate_space_gate_center\
-                = Vector3(clip_space_gate_center.xyz) / clip_space_gate_center.w
-        else:  # Clipped
-            normalized_device_coordinate_space_gate_center = clip_space_gate_center.xyz
+        # if normalized_device_coordinate_space_gate_center.z >= 1:
+        #     return [-1, -1]
 
-        # Behind the camera
-        if normalized_device_coordinate_space_gate_center.z >= 1:
-            return [-1, -1]
+        return self.project_to_img_frame(mesh_center, view)
 
-        viewOffset = 0
-        image_frame_gate_center =\
-            ((np.array(normalized_device_coordinate_space_gate_center.xy) + 1.0) /
-             2.0) * np.array([self.width, self.height]) + viewOffset
-
-        # Translate from bottom-left to top-left
-        image_frame_gate_center[1] = self.height - image_frame_gate_center[1]
-
-        # Move the gate center back to the image frame if it's slightly
-        # outside of the image frame (the gate frame is still visible and we can
-        # guess where to steer)
-        for i in range(2):
-            if image_frame_gate_center[i] <= 0:
-                offset = (-image_frame_gate_center[i]) / (self.width if i == 0
-                                                          else self.height)
-                # TODO: Make this dirty hack cleaner
-                if gate_dist < 3 and  offset <= 0.3:
-                    image_frame_gate_center[i] = 1
-                elif gate_dist <= 7 and offset <= self.out_of_screen_margin:
-                    image_frame_gate_center[i] = 1
-
-        return image_frame_gate_center
 
     '''
         Project the perspective as a grid (might need some tuning for
@@ -306,8 +276,8 @@ class SceneRenderer:
         grid_prog['Light2'].value = (3.0, 0.0, 3.0)
         grid_prog['Light3'].value = (-3.0, 0.0, 3.0)
         grid_prog['Light4'].value = (0.0, 6.0, 3.0)
-        grd_prog['UseTexture'].value = False;
-        grid_prog['Color'].value = (0.0, 1.0, 0.0, 1.0)
+        grid_prog['UseTexture'].value = False;
+        grid_prog['Color'].value = (0.0, 1.0, 0.0)
         grid_prog['MVP'].write(vp.astype('f4').tobytes())
 
         vbo = self.context.buffer(grid.astype('f4').tobytes())
@@ -319,13 +289,51 @@ class SceneRenderer:
     '''
         Returns the Euclidean distance of the gate to the camera
     '''
-    def compute_camera_proximity(self, mesh, view, model):
-        dist = np.linalg.norm((model * mesh['center']) - self.drone_pose.translation)
-        coords = self.compute_gate_center(mesh, view, model, dist)
-        if coords[0] < 0 or coords[0] > self.width or coords[1] < 0 or coords[1] > self.height:
-            return coords, 1000
-        else:
-            return coords, dist
+    def compute_camera_proximity(self, model, mesh):
+        return np.linalg.norm((model * mesh['center']) - self.drone_pose.translation)
+
+    '''
+        Computes the bounding box min/max coordinates (diagonal corners) in the
+        image frame, and clips them to the image borders if one of them is
+        outside.  Otherwise, the gate is not visible.
+    '''
+    def compute_bbox_coords(self, model, mesh, view):
+        center = model * mesh['center']
+        world_corners = {
+            'min': Vector3([
+                center[0] - mesh['width']/2,
+                center[1],
+                center[2] - mesh['height']/2
+            ]),
+            'max': Vector3([
+                center[0] + mesh['width']/2,
+                center[1],
+                center[2] + mesh['height']/2
+            ])
+        }
+        image_corners = {}
+        hidden_corners = 0
+
+        for key, value in world_corners.items():
+            img_coords = self.project_to_img_frame(value, view)
+            if (img_coords[0] < 0 or img_coords[0] > self.width
+                    or img_coords[1] < 0 or img_coords[1] > self.height):
+                hidden_corners += 1
+            image_corners[key] = img_coords
+
+        if hidden_corners > 1:
+            return {}
+        elif hidden_corners > 0:
+            for key, img_coords in image_corners.items():
+                for i in range(0,1):
+                    if img_coords[i] < 0:
+                        img_coords[i] = 0
+                    elif img_coords[i] > (self.width if i == 0 else self.height):
+                        img_coords[i] = self.width if i == 0 else self.height
+                image_corners[key] = img_coords
+
+        return image_corners
+
 
     def generate(self, min_dist=2.0, max_gates=6):
         # Camera view matrix
@@ -361,23 +369,29 @@ class SceneRenderer:
         self.context.enable(moderngl.DEPTH_TEST)
         self.context.clear(0, 0, 0, 0)
 
-        gate_center = None
-        gate_rotation = None
+        gate_rotation = Quaternion()
         gate_normal = None
         gate_distance = None
         min_prox = None
+        bounding_boxes = []
+        closest_gate = None
+        n = 0
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
             mesh, model, translation, rotation = self.render_gate(view, min_dist)
-            center, proximity = self.compute_camera_proximity(mesh, view, model)
+            proximity = self.compute_camera_proximity(model, mesh)
+            bbox = self.compute_bbox_coords(model, mesh, view)
             # Pick the target gate: the closest to the camera
-            if min_prox is None or proximity < min_prox:
+            if bbox != {} and (min_prox is None or proximity < min_prox):
+                closest_gate = n
                 min_prox = proximity
-                gate_center = center
                 gate_rotation = rotation
-                gate_distance = np.linalg.norm(self.drone_pose.translation -
-                                               translation)
+                gate_distance = np.linalg.norm(
+                    self.drone_pose.translation - translation)
                 gate_normal = self.compute_gate_normal(mesh, view, model)
+            if bbox != {}:
+                bounding_boxes.append(bbox)
+                n += 1
 
         if self.render_perspective:
             self.render_perspective_grid(view)
@@ -390,7 +404,8 @@ class SceneRenderer:
             'RGBA', 0, -1)
 
         annotations = {
-            'gate_center_img_frame': gate_center,
+            'bboxes': bounding_boxes,
+            'closest_gate': closest_gate,
             'gate_rotation': gate_rotation,
             'gate_distance': gate_distance,
             'gate_normal': gate_normal,

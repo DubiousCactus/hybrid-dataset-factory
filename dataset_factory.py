@@ -147,13 +147,8 @@ class DatasetFactory:
         projector.set_drone_pose(background.annotations)
         projection, annotations = projector.generate(min_dist=self.min_dist,
                                                      max_gates=self.max_gates)
-        gate_center = self.scale_coordinates(
-            annotations['gate_center_img_frame'], (self.target_width,
-                                                   self.target_height))
-        gate_visible = (gate_center[0] >= 0 and gate_center[0] <=
-                        self.target_width) and (gate_center[1] >= 0 and
-                                                gate_center[1] <=
-                                                self.target_height)
+        bboxes = annotations['bboxes']
+        gate_visible = len(bboxes) > 0
 
         if gate_visible:
             projection_blurred = self.apply_motion_blur(
@@ -164,12 +159,23 @@ class DatasetFactory:
 
         output = self.combine(projection, background.image())
 
+        # TODO: Refactor (one-liner?)
+        scaled_bboxes = []
+        for bbox in bboxes:
+            scaled_bbox = {}
+            for key, val in bbox.items():
+                scaled_bbox[key] = self.scale_coordinates(val, output.size)
+            scaled_bboxes.append(scaled_bbox)
+
         if self.verbose:
             if gate_visible:
-                self.draw_gate_center(output, gate_center)
                 normal = self.scale_coordinates(annotations['gate_normal'],
                                                 output.size)
-                self.draw_gate_normal(output, gate_center, normal)
+                self.draw_bounding_boxes(output, scaled_bboxes,
+                                         annotations['closest_gate'])
+                # closest_bbox = scaled_bboxes[annotations['closest_gate']]
+                # self.draw_gate_normal(output, closest_bbox['min'], normal)
+                # self.draw_gate_normal(output, closest_bbox['max'], normal)
 
             self.draw_image_annotations(output, annotations)
 
@@ -177,7 +183,7 @@ class DatasetFactory:
             AnnotatedImage(
                 output,
                 index,
-                SyntheticAnnotations(gate_center, annotations['gate_rotation'],
+                SyntheticAnnotations(scaled_bboxes, annotations['gate_rotation'],
                                      annotations['gate_distance'],
                                      gate_visible)))
 
@@ -216,9 +222,6 @@ class DatasetFactory:
 
         return 1 - blur_amount
 
-    def equalize_histograms(self, img: Image, bg: Image):
-        pass
-
     def add_noise(self, img):
         noisy_img = random_noise(img, mode='gaussian',
                                  var=self.noise_amount**2)
@@ -243,12 +246,16 @@ class DatasetFactory:
 
         return cv2.filter2D(cv_img, -1, kernel)
 
-    def draw_gate_center(self, img, coordinates, color="green"):
+    def draw_bounding_boxes(self, img, bboxes, closest_gate, color="green",
+                            closest_color="red"):
         gate_draw = ImageDraw.Draw(img)
-        gate_draw.line((coordinates[0] - 10, coordinates[1],
-                        coordinates[0] + 10, coordinates[1]), fill=color)
-        gate_draw.line((coordinates[0], coordinates[1] - 10, coordinates[0],
-                        coordinates[1] + 10), fill=color)
+        for i, bbox in enumerate(bboxes):
+            c = color
+            if i == closest_gate:
+                c = closest_color
+            gate_draw.rectangle([(bbox['min'][0], bbox['min'][1]),
+                                 (bbox['max'][0], bbox['max'][1])],
+                                outline=c)
 
     def draw_gate_normal(self, img, center, normal_gt, color="red"):
         gate_draw = ImageDraw.Draw(img)
@@ -256,11 +263,10 @@ class DatasetFactory:
                        fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        text = "gate_center_image_frame: {}\ngate_distance:\
-                {}\ngate_rotation:\ {}\ndrone_pose:\
+        text = "\ngate_distance: {}\ngate_rotation:\ {}\ndrone_pose:\
                 {}\ndrone_orientation:{}".format(
-                    annotations['gate_center_img_frame'],
-                    annotations['gate_distance'], annotations['gate_rotation'],
+                    annotations['gate_distance'],
+                    annotations['gate_rotation'],
                     annotations['drone_pose'],
                     annotations['drone_orientation'])
         text_draw = ImageDraw.Draw(img)

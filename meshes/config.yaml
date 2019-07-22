@@ -1,2 +1,8 @@
-1.5x1.5_frame.obj: [0,0,1.8]
-1x1_frame.obj: [0,0,1.8]
+1.5x1.5_frame.obj:
+  center: [0,0,1.8]
+  width: 2.1
+  height: 2.1
+1x1_frame.obj:
+  center: [0,0,1.8]
+  width: 1.6
+  height: 1.6

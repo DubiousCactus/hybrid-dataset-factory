@@ -11,6 +11,7 @@ Dataset class, holding background images along with their annotations
 """
 
 import random
+import csv
 import os
 
 from PIL import Image
@@ -39,8 +40,8 @@ class BackgroundImage:
 
 
 class SyntheticAnnotations:
-    def __init__(self, center, orientation: Quaternion, distance: float, on_screen: bool):
-        self.center = [int(x) for x in center]
+    def __init__(self, bboxes, orientation: Quaternion, distance: float, on_screen: bool):
+        self.bboxes = bboxes
         self.orientation = orientation
         self.distance = distance
         self.on_screen = 1 if on_screen else 0
@@ -129,10 +130,22 @@ class Dataset:
     # Runs in a thread
     def save(self):
         if not self.saving:
-            self.output_csv = open(os.path.join(self.path,
-                                                'annotations.csv'), 'w')
-            self.output_csv.write(
-                "frame,gate_center_x,gate_center_y,gate_rotation_x,gate_rotation_y,gate_rotation_z,gate_rotation_w,gate_distance,gate_visible\n")
+            self.output_csv = open(os.path.join(self.path, 'annotations.csv'),
+                                   'w')
+            writer = csv.writer(self.output_csv, delimiter=',')
+            writer.writerow([
+                'frame',
+                'gate_visible',
+                'gate_rotation_x',
+                'gate_rotation_y',
+                'gate_rotation_z',
+                'gate_rotation_w',
+                'gate_distance',
+                'bounding_box_n_x',
+                'bounding_box_n_y',
+                'bounding_box_n+1_x',
+                'bounding_box_n+1_y'
+            ])
             self.saving = True
             if not os.path.isdir(os.path.join(self.path, 'images')):
                 os.mkdir(os.path.join(self.path, 'images'))
@@ -142,17 +155,23 @@ class Dataset:
             annotatedImage.image.save(
                 os.path.join(self.path, 'images', name)
             )
-            self.output_csv.write("{},{},{},{},{},{},{},{}\n".format(
+            bboxes = []
+            for bbox in annotatedImage.annotations.bboxes:
+                bboxes.append(bbox['min'][0])
+                bboxes.append(bbox['min'][1])
+                bboxes.append(bbox['max'][0])
+                bboxes.append(bbox['max'][1])
+
+            writer = csv.writer(self.output_csv, delimiter=',')
+            writer.writerow([
                 name,
-                annotatedImage.annotations.center[0],
-                annotatedImage.annotations.center[1],
+                annotatedImage.annotations.on_screen,
                 annotatedImage.annotations.orientation.x,
                 annotatedImage.annotations.orientation.y,
                 annotatedImage.annotations.orientation.z,
                 annotatedImage.annotations.orientation.w,
-                annotatedImage.annotations.distance,
-                annotatedImage.annotations.on_screen
-            ))
+                annotatedImage.annotations.distance
+            ] + bboxes)
             self.output_csv.flush()
         self.output_csv.close()
 
