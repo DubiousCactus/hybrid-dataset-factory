@@ -402,10 +402,18 @@ class SceneRenderer:
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
             mesh, model, translation, rotation = self.render_gate(view, min_dist)
+            leftmost_point = model * Vector3(
+                [mesh['center'][0] - 20, mesh['center'][1], 0])
+            rightmost_point = model * Vector3(
+                [mesh['center'][0] + 20, mesh['center'][1], 0])
+            cross_product = (rightmost_point -
+                             leftmost_point).cross(self.drone_pose.translation -
+                                                   leftmost_point)
+            facing = True if cross_product.z >= 0 else False
             proximity = self.compute_camera_proximity(model, mesh)
             bbox = self.compute_bbox_coords(model, mesh, view)
             # Pick the target gate: the closest to the camera
-            if bbox != {} and (min_prox is None or proximity < min_prox):
+            if bbox != {} and facing and (min_prox is None or proximity < min_prox):
                 closest_gate = n
                 min_prox = proximity
                 gate_rotation = rotation

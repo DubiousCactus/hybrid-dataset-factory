@@ -169,13 +169,14 @@ class DatasetFactory:
 
         if self.verbose:
             if gate_visible:
-                normal = self.scale_coordinates(annotations['gate_normal'],
-                                                output.size)
+                # if annotations['closest_gate'] is not None:
+                    # normal = self.scale_coordinates(annotations['gate_normal'],
+                                                    # output.size)
+                    # closest_bbox = scaled_bboxes[annotations['closest_gate']]
+                    # self.draw_gate_normal(output, closest_bbox['min'], normal)
+                    # self.draw_gate_normal(output, closest_bbox['max'], normal)
                 self.draw_bounding_boxes(output, scaled_bboxes,
                                          annotations['closest_gate'])
-                # closest_bbox = scaled_bboxes[annotations['closest_gate']]
-                # self.draw_gate_normal(output, closest_bbox['min'], normal)
-                # self.draw_gate_normal(output, closest_bbox['max'], normal)
 
             self.draw_image_annotations(output, annotations)
 
@@ -251,7 +252,7 @@ class DatasetFactory:
         gate_draw = ImageDraw.Draw(img)
         for i, bbox in enumerate(bboxes):
             c = color
-            if i == closest_gate:
+            if closest_gate is not None and i == closest_gate:
                 c = closest_color
             gate_draw.rectangle([(bbox['min'][0], bbox['min'][1]),
                                  (bbox['max'][0], bbox['max'][1])],
