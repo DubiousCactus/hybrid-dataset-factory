@@ -340,8 +340,8 @@ class SceneRenderer:
                 right = {'x': img_coords[0], 'y': img_coords[1]}
 
         image_corners = {
-            'min': [left['x'], top['y']],
-            'max': [right['x'], bottom['y']]
+            'min': [int(left['x']), int(top['y'])],
+            'max': [int(right['x']), int(bottom['y'])]
         }
 
         if hidden_corners > 3:
@@ -411,18 +411,27 @@ class SceneRenderer:
                                                    leftmost_point)
             facing = True if cross_product.z >= 0 else False
             proximity = self.compute_camera_proximity(model, mesh)
-            bbox = self.compute_bbox_coords(model, mesh, view)
+            coords = self.compute_bbox_coords(model, mesh, view)
+
             # Pick the target gate: the closest to the camera
-            if bbox != {} and facing and (min_prox is None or proximity < min_prox):
+            if coords != {} and facing and (min_prox is None or proximity < min_prox):
                 closest_gate = n
                 min_prox = proximity
                 gate_rotation = rotation
-                gate_distance = np.linalg.norm(
-                    self.drone_pose.translation - translation)
+                gate_distance = np.linalg.norm(self.drone_pose.translation - translation)
                 gate_normal = self.compute_gate_normal(mesh, view, model)
-            if bbox != {}:
-                bounding_boxes.append(bbox)
+            if coords != {}:
+                bounding_boxes.append({
+                    'class_id': 4 if facing else 3,
+                    'min': [coords['min'][0], coords['min'][1]],
+                    'max': [coords['max'][0], coords['max'][1]]
+                })
                 n += 1
+
+        # Update the target gate's class
+        if closest_gate is not None:
+            bounding_boxes[closest_gate]['class_id'] = 2
+
 
         if self.render_perspective:
             self.render_perspective_grid(view)

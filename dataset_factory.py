@@ -162,9 +162,10 @@ class DatasetFactory:
         # TODO: Refactor (one-liner?)
         scaled_bboxes = []
         for bbox in bboxes:
-            scaled_bbox = {}
+            scaled_bbox = bbox
             for key, val in bbox.items():
-                scaled_bbox[key] = self.scale_coordinates(val, output.size)
+                if key in ['min', 'max']:
+                    scaled_bbox[key] = self.scale_coordinates(val, output.size)
             scaled_bboxes.append(scaled_bbox)
 
         if self.verbose:

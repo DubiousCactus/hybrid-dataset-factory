@@ -11,7 +11,7 @@ Dataset class, holding background images along with their annotations
 """
 
 import random
-import csv
+import json
 import os
 
 from PIL import Image
@@ -130,22 +130,18 @@ class Dataset:
     # Runs in a thread
     def save(self):
         if not self.saving:
-            self.output_csv = open(os.path.join(self.path, 'annotations.csv'),
-                                   'w')
-            writer = csv.writer(self.output_csv, delimiter=',')
-            writer.writerow([
-                'frame',
-                'gate_visible',
-                'gate_rotation_x',
-                'gate_rotation_y',
-                'gate_rotation_z',
-                'gate_rotation_w',
-                'gate_distance',
-                'bounding_box_n_x',
-                'bounding_box_n_y',
-                'bounding_box_n+1_x',
-                'bounding_box_n+1_y'
-            ])
+            with open(os.path.join(self.path, 'annotations.json'),
+                      'w', encoding='UTF-8') as f:
+                annotations = {}
+                annotations['classes'] = [
+                    {'id': 1, 'label': 'Background'},
+                    {'id': 2, 'label': 'Closest gate'},
+                    {'id': 3, 'label': 'Backward gate'},
+                    {'id': 4, 'label': 'Forward gate'}
+                ]
+                annotations['annotations'] = []
+                json.dump(annotations, f, ensure_ascii=False, indent=4)
+
             self.saving = True
             if not os.path.isdir(os.path.join(self.path, 'images')):
                 os.mkdir(os.path.join(self.path, 'images'))
@@ -157,23 +153,28 @@ class Dataset:
             )
             bboxes = []
             for bbox in annotatedImage.annotations.bboxes:
-                bboxes.append(bbox['min'][0])
-                bboxes.append(bbox['min'][1])
-                bboxes.append(bbox['max'][0])
-                bboxes.append(bbox['max'][1])
+                bboxes.append({
+                    'class_id': bbox['class_id'],
+                    'xmin': bbox['min'][0],
+                    'ymin': bbox['min'][1],
+                    'xmax': bbox['max'][0],
+                    'ymax': bbox['max'][1],
+                })
 
-            writer = csv.writer(self.output_csv, delimiter=',')
-            writer.writerow([
-                name,
-                annotatedImage.annotations.on_screen,
-                annotatedImage.annotations.orientation.x,
-                annotatedImage.annotations.orientation.y,
-                annotatedImage.annotations.orientation.z,
-                annotatedImage.annotations.orientation.w,
-                annotatedImage.annotations.distance
-            ] + bboxes)
-            self.output_csv.flush()
-        self.output_csv.close()
+            annotation = {
+                'image': name,
+                'annotations': bboxes
+            }
+
+            with open(os.path.join(self.path, 'annotations.json'),
+                      'r', encoding='UTF-8') as f:
+                data = json.load(f)
+
+            data['annotations'].append(annotation)
+
+            with open(os.path.join(self.path, 'annotations.json'),
+                      'w', encoding='UTF-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
 
     def get_image_size(self):
         print("[*] Using {}x{} base resolution".format(self.width, self.height))
