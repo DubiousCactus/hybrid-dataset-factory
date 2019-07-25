@@ -327,8 +327,8 @@ class SceneRenderer:
 
         for key, value in world_corners.items():
             img_coords = self.project_to_img_frame(value, view)
-            if (img_coords[0] < 15 or img_coords[0] > (self.width-15)
-                    or img_coords[1] < 15 or img_coords[1] > (self.height-15)):
+            if (img_coords[0] < 10 or img_coords[0] > (self.width-10)
+                    or img_coords[1] < 10 or img_coords[1] > (self.height-10)):
                 hidden_corners += 1
             if left is None or (img_coords[0] < left['x']):
                 left = {'x': img_coords[0], 'y': img_coords[1]}
@@ -348,7 +348,7 @@ class SceneRenderer:
             return {}
         elif hidden_corners > 0:
             for key, img_coords in image_corners.items():
-                for i in range(0,1):
+                for i in range(0,2):
                     if img_coords[i] < 0:
                         img_coords[i] = 0
                     elif img_coords[i] > (self.width if i == 0 else self.height):

@@ -191,10 +191,10 @@ class DatasetFactory:
 
     # Scale to target width/height
     def scale_coordinates(self, coordinates, target_coordinates):
-        coordinates[0] = (coordinates[0]
+        coordinates[0] = int(coordinates[0]
                           * target_coordinates[0]
                           / self.base_width)
-        coordinates[1] = (coordinates[1]
+        coordinates[1] = int(coordinates[1]
                           * target_coordinates[1]
                           / self.base_height)
 
