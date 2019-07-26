@@ -134,10 +134,10 @@ class Dataset:
                       'w', encoding='UTF-8') as f:
                 annotations = {}
                 annotations['classes'] = [
-                    {'id': 1, 'label': 'Background'},
-                    {'id': 2, 'label': 'Closest gate'},
-                    {'id': 3, 'label': 'Backward gate'},
-                    {'id': 4, 'label': 'Forward gate'}
+                    {'id': 0, 'label': 'Background'},
+                    {'id': 1, 'label': 'Closest gate'},
+                    {'id': 2, 'label': 'Backward gate'},
+                    {'id': 3, 'label': 'Forward gate'}
                 ]
                 annotations['annotations'] = []
                 json.dump(annotations, f, ensure_ascii=False, indent=4)
