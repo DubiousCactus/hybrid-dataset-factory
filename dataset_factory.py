@@ -67,7 +67,7 @@ class DatasetFactory:
         self.count = args.nb_images
         self.cam_param = args.camera_parameters
         self.verbose = args.verbose
-        self.render_perspective = args.extra_verbose
+        self.extra_verbose = args.extra_verbose
         self.max_blur_amount = args.blur_threshold
         self.noise_amount = args.noise_amount
         self.no_blur = args.no_blur
@@ -75,7 +75,7 @@ class DatasetFactory:
         self.max_gates = args.max_gates
         self.min_dist = args.min_dist
         self.oos_percentage = args.oos_percentage
-        if self.render_perspective:
+        if self.extra_verbose:
             self.verbose = True
         self.background_dataset = Dataset(args.dataset, args.seed)
         if not self.background_dataset.load(self.count,
@@ -100,7 +100,7 @@ class DatasetFactory:
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
         projector = SceneRenderer(self.meshes_dir, self.base_width,
                                   self.base_height, self.world_boundaries,
-                                  self.cam_param, self.render_perspective,
+                                  self.cam_param, self.extra_verbose,
                                   self.seed, self.oos_percentage)
         save_thread.start()
         for i in tqdm(range(self.count),
@@ -131,7 +131,7 @@ class DatasetFactory:
                         SceneRenderer(self.meshes_dir, self.base_width,
                                       self.base_height, self.world_boundaries,
                                       self.gate_center, self.cam_param,
-                                      self.render_perspective, self.seed))
+                                      self.extra_verbose, self.seed))
                 args = zip(range(max_), max_ * list(range(self.nb_threads)))
                 for i, _ in tqdm(
                         enumerate(p.imap_unordered(self.generate, args))):
@@ -179,6 +179,7 @@ class DatasetFactory:
                 self.draw_bounding_boxes(output, scaled_bboxes,
                                          annotations['closest_gate'])
 
+        if self.extra_verbose:
             self.draw_image_annotations(output, annotations)
 
         self.generated_dataset.put(

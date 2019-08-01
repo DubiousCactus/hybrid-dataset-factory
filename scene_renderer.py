@@ -422,7 +422,7 @@ class SceneRenderer:
                 gate_normal = self.compute_gate_normal(mesh, view, model)
             if coords != {}:
                 bounding_boxes.append({
-                    'class_id': 4 if facing else 3,
+                    'class_id': 3 if facing else 2,
                     'min': [coords['min'][0], coords['min'][1]],
                     'max': [coords['max'][0], coords['max'][1]]
                 })
@@ -430,7 +430,7 @@ class SceneRenderer:
 
         # Update the target gate's class
         if closest_gate is not None:
-            bounding_boxes[closest_gate]['class_id'] = 2
+            bounding_boxes[closest_gate]['class_id'] = 1
 
 
         if self.render_perspective:
