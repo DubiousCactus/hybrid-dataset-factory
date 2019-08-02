@@ -172,7 +172,7 @@ class SceneRenderer:
         prog['Light1'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(4, 7))
+            random.uniform(5, 7))
         # prog['Light2'].value = (
             # random.uniform(-self.boundaries['x'], self.boundaries['x']),
             # random.uniform(-self.boundaries['y'], self.boundaries['y']),
@@ -201,6 +201,11 @@ class SceneRenderer:
         contour_back_vao = self.context.simple_vertex_array(
             prog, contour_back_vbo, 'in_vert', 'in_norm', 'in_text')
 
+        prog['viewPos'].value = (
+            self.drone_pose.translation.x,
+            self.drone_pose.translation.y,
+            self.drone_pose.translation.z
+        )
         prog['Color'].value = (random.uniform(0, 0.7),
                                random.uniform(0, 0.7),
                                random.uniform(0, 0.7))
