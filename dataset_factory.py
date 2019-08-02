@@ -74,7 +74,6 @@ class DatasetFactory:
         self.seed = args.seed
         self.max_gates = args.max_gates
         self.min_dist = args.min_dist
-        self.oos_percentage = args.oos_percentage
         if self.extra_verbose:
             self.verbose = True
         self.background_dataset = Dataset(args.dataset, args.seed)
@@ -101,7 +100,7 @@ class DatasetFactory:
         projector = SceneRenderer(self.meshes_dir, self.base_width,
                                   self.base_height, self.world_boundaries,
                                   self.cam_param, self.extra_verbose,
-                                  self.seed, self.oos_percentage)
+                                  self.seed)
         save_thread.start()
         for i in tqdm(range(self.count),
                       unit="img",
@@ -119,6 +118,8 @@ class DatasetFactory:
     '''
     def run_multi_threaded(self):
         print("[*] Generating dataset...")
+        print("[*] Using {}x{} target resolution".format(self.target_width,
+                                                         self.target_height))
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
 
         with mp.Pool(self.nb_threads) as p:
@@ -130,8 +131,8 @@ class DatasetFactory:
                     self.projectors.append(
                         SceneRenderer(self.meshes_dir, self.base_width,
                                       self.base_height, self.world_boundaries,
-                                      self.gate_center, self.cam_param,
-                                      self.extra_verbose, self.seed))
+                                      self.cam_param, self.extra_verbose,
+                                      self.seed))
                 args = zip(range(max_), max_ * list(range(self.nb_threads)))
                 for i, _ in tqdm(
                         enumerate(p.imap_unordered(self.generate, args))):
@@ -141,6 +142,8 @@ class DatasetFactory:
                 self.generated_dataset.data.put(None)
                 save_thread.join()
                 print("[*] Saved to {}".format(self.generated_dataset.path))
+                print("[*] Gate visibilty percentage: {}%".format(
+                    int((self.visible_gates/self.count)*100)))
 
     def generate(self, index, projector):
         background = self.background_dataset.get()
@@ -317,9 +320,6 @@ if __name__ == "__main__":
     parser.add_argument('--min-dist', dest='min_dist', type=float, help='the\
                         minimum distance between each gate, in meter',
                         default=3.5)
-    parser.add_argument('--oos', dest='oos_percentage', default=0.15,
-                        type=float, help='the out-of-screen acceptance margin'
-                        ' for the gate center, in image frame percentage')
 
     datasetFactory = DatasetFactory(parser.parse_args())
     # Real world boundaries in meters (relative to the mesh's scale)

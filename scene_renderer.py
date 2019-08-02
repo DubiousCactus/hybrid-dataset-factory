@@ -25,9 +25,10 @@ from PIL import Image
 
 
 class SceneRenderer:
+    gl_version = (3, 3)
     def __init__(self, meshes_dir: str, width: int, height: int,
                  world_boundaries, camera_parameters, render_perspective=False,
-                 seed=None, oos_percentage=0.05):
+                 seed=None):
         if seed:
             random.seed(seed)
         else:
@@ -36,7 +37,6 @@ class SceneRenderer:
         self.width = width
         self.height = height
         self.boundaries = self.compute_boundaries(world_boundaries)
-        self.out_of_screen_margin = oos_percentage
         with open(camera_parameters, 'r') as cam_file:
             try:
                 self.camera_parameters = yaml.safe_load(cam_file)
@@ -74,10 +74,10 @@ class SceneRenderer:
                                          file_name.split('_')[0]
                                          + '_contour_back.obj'))
                         contour_png = Image.open(
-                            os.path.join(path,
-                                         file_name.split('_')[0]
-                                         +
-                                         '.png')).transpose(Image.FLIP_TOP_BOTTOM)
+                            os.path.join(
+                                path, file_name.split('_')[0] + '.png')
+                        ).transpose(Image.FLIP_LEFT_RIGHT).transpose(
+                            Image.FLIP_TOP_BOTTOM).convert('RGB')
                         contour_texture = self.context.texture(
                             contour_png.size, 3, contour_png.tobytes())
                         contour_texture.build_mipmaps()
@@ -168,41 +168,45 @@ class SceneRenderer:
         fragment_shader_source = open('data/shader.frag').read()
         prog = self.context.program(vertex_shader=vertex_shader_source,
                                     fragment_shader=fragment_shader_source)
+
         prog['Light1'].value = (
             random.uniform(-self.boundaries['x'], self.boundaries['x']),
             random.uniform(-self.boundaries['y'], self.boundaries['y']),
             random.uniform(4, 7))
-        prog['Light2'].value = (
-            random.uniform(-self.boundaries['x'], self.boundaries['x']),
-            random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(4, 7))
-        prog['Light3'].value = (
-            random.uniform(-self.boundaries['x'], self.boundaries['x']),
-            random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(4, 7))
-        prog['Light4'].value = (
-            random.uniform(-self.boundaries['x'], self.boundaries['x']),
-            random.uniform(-self.boundaries['y'], self.boundaries['y']),
-            random.uniform(4, 7))
+        # prog['Light2'].value = (
+            # random.uniform(-self.boundaries['x'], self.boundaries['x']),
+            # random.uniform(-self.boundaries['y'], self.boundaries['y']),
+            # random.uniform(4, 7))
+        # prog['Light3'].value = (
+            # random.uniform(-self.boundaries['x'], self.boundaries['x']),
+            # random.uniform(-self.boundaries['y'], self.boundaries['y']),
+                # random.uniform(4, 7))
+            # prog['Light4'].value = (
+            # random.uniform(-self.boundaries['x'], self.boundaries['x']),
+            # random.uniform(-self.boundaries['y'], self.boundaries['y']),
+            # random.uniform(4, 7))
         prog['MVP'].write(mvp.astype('f4').tobytes())
 
         mesh = self.meshes[random.choice(list(self.meshes.keys()))]
-        frame_vbo = self.context.buffer(mesh['obj'].pack())
+        frame_vbo = self.context.buffer(
+            mesh['obj'].pack('vx vy vz nx ny nz tx ty'))
         frame_vao = self.context.simple_vertex_array(
-            prog, frame_vbo, *['in_vert', 'in_text', 'in_norm'])
-        contour_front_vbo = self.context.buffer(mesh['contour_obj_front'].pack())
+            prog, frame_vbo, 'in_vert', 'in_norm', 'in_text')
+        contour_front_vbo = self.context.buffer(
+            mesh['contour_obj_front'].pack('vx vy vz nx ny nz tx ty'))
         contour_front_vao = self.context.simple_vertex_array(
-            prog, contour_front_vbo, *['in_vert', 'in_text', 'in_norm'])
-        contour_back_vbo = self.context.buffer(mesh['contour_obj_back'].pack())
+            prog, contour_front_vbo, 'in_vert', 'in_norm', 'in_text')
+        contour_back_vbo = self.context.buffer(
+            mesh['contour_obj_back'].pack('vx vy vz nx ny nz tx ty'))
         contour_back_vao = self.context.simple_vertex_array(
-            prog, contour_back_vbo, *['in_vert', 'in_text', 'in_norm'])
+            prog, contour_back_vbo, 'in_vert', 'in_norm', 'in_text')
 
-        prog['Color'].value = (random.uniform(0, 0.5),
-                               random.uniform(0, 0.5),
-                               random.uniform(0, 0.5))
+        prog['Color'].value = (random.uniform(0, 0.7),
+                               random.uniform(0, 0.7),
+                               random.uniform(0, 0.7))
         prog['UseTexture'].value = False
         frame_vao.render()
-        prog['Color'].value = (0.9, 0.9, 0.9)
+        prog['Color'].value = (0.8, 0.8, 0.8)
         contour_back_vao.render()
         mesh['contour_texture'].use()
         prog['UseTexture'].value = True
