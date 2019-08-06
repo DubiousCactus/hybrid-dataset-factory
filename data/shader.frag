@@ -1,27 +1,39 @@
 #version 330
 
+uniform vec3 Color;
+uniform vec3 Light1;
+uniform vec3 Light2;
+uniform vec3 Light3;
+uniform vec3 Light4;
+uniform vec3 viewPos;
+uniform bool UseTexture;
 uniform sampler2D Texture;
-uniform vec4 Color;
-uniform vec3 Light;
 
 in vec3 v_vert;
 in vec3 v_norm;
-in vec3 v_text;
+in vec2 v_text;
 
 out vec4 f_color;
 
 void main() {
-	float lum = dot(normalize(v_norm), normalize(v_vert - Light));
-	lum = acos(lum) / 3.14159265;
-	lum = clamp(lum, 0.0, 1.0);
-	lum = lum * lum;
-	lum = smoothstep(0.0, 1.0, lum);
+	float ambientStrength = 0.5;
+	float specularStrength = 0.5;
+	int shininess = 64;
 
-	lum *= smoothstep(0.0, 80.0, v_vert.z) * 0.3 + 0.7;
+	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+	vec3 lightDir = normalize(Light1 - v_vert);
+	vec3 viewDir = normalize(viewPos - v_vert);
+	vec3 reflectDir = reflect(-lightDir, normalize(v_norm));
 
-	lum = lum * 0.8 + 0.2;
+	vec3 ambient = lightColor * ambientStrength;
 
-	vec3 color = texture(Texture, v_text.xy).rgb;
-	color = color * (1.0 - Color.a) + Color.rgb * Color.a;
-	f_color = vec4(color * lum, 1.0);
+	float diffuse = clamp(dot(normalize(v_norm), lightDir), 0.0, 1.0);
+
+	float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+	vec3 specular = specularStrength * spec * lightColor;
+
+	vec3 combined = (ambient + diffuse + specular);
+
+	f_color = UseTexture ? vec4(texture(Texture, v_text).rgb * combined, 1.0)
+		: vec4(Color * combined, 1.0);
 }

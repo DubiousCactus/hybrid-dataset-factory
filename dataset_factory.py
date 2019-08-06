@@ -21,12 +21,10 @@ import sys
 import os
 
 from tqdm import *
-from pyrr import Vector3
-from itertools import repeat
 from PIL import Image, ImageDraw
 from skimage.util import random_noise
 from scene_renderer import SceneRenderer
-from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotations
+from dataset import Dataset, AnnotatedImage, SyntheticAnnotations
 
 
 '''
@@ -48,9 +46,11 @@ from dataset import Dataset, BackgroundImage, AnnotatedImage, SyntheticAnnotatio
 [x] Add background gates
 [x] Compute gate visibility percentage over the whole dataset
 [x] Compute gate orientation with respect to the camera
-[x] Ensure that the gate is always oriented towards the camera (for the annotation)
+[x] Ensure that the gate is always oriented towards the camera (for the
+    annotation)
 [x] Save annotations
 [ ] Refactor DatasetFactory (create augentation class)
+[ ] Refactor SceneRenderer (use an interface to let users script their scene)
 [ ] Apply the distortion to the OpenGL projection
 [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 [x] Add variation to the mesh and texture
@@ -68,23 +68,25 @@ class DatasetFactory:
         self.count = args.nb_images
         self.cam_param = args.camera_parameters
         self.verbose = args.verbose
-        self.render_perspective = args.extra_verbose
+        self.extra_verbose = args.extra_verbose
         self.max_blur_amount = args.blur_threshold
         self.noise_amount = args.noise_amount
         self.no_blur = args.no_blur
         self.seed = args.seed
         self.max_gates = args.max_gates
         self.min_dist = args.min_dist
-        self.oos_percentage = args.oos_percentage
-        if self.render_perspective:
+        if self.extra_verbose:
             self.verbose = True
         self.background_dataset = Dataset(args.dataset, args.seed)
-        if not self.background_dataset.load(self.count, args.annotations):
+        if not self.background_dataset.load(self.count,
+                                            os.path.join(args.dataset,
+                                                         'annotations.csv')):
             print("[!] Could not load dataset!")
             sys.exit(1)
         self.generated_dataset = Dataset(args.destination, max=100)
         self.base_width, self.base_height = self.background_dataset.get_image_size()
-        self.target_width, self.target_height = [int(x) for x in args.resolution.split('x')]
+        self.target_width, self.target_height = [
+            int(x) for x in args.resolution.split('x')]
         self.sample_no = 0
         self.visible_gates = 0
 
@@ -96,25 +98,29 @@ class DatasetFactory:
         print("[*] Using {}x{} target resolution".format(self.target_width,
                                                          self.target_height))
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
-        projector = SceneRenderer(self.meshes_dir, self.base_width, self.base_height,
-                                  self.world_boundaries, self.cam_param,
-                                  self.render_perspective, self.seed,
-                                  self.oos_percentage)
+        projector = SceneRenderer(self.meshes_dir, self.base_width,
+                                  self.base_height, self.world_boundaries,
+                                  self.cam_param, self.extra_verbose,
+                                  self.seed)
         save_thread.start()
         for i in tqdm(range(self.count),
-                      unit="img", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"):
+                      unit="img",
+                      bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}"):
             self.generate(i, projector)
 
         self.generated_dataset.data.put(None)
         save_thread.join()
         print("[*] Saved to {}".format(self.generated_dataset.path))
-        print("[*] Gate visibilty percentage: {}%".format(int((self.visible_gates/self.count)*100)))
+        print("[*] Gate visibilty percentage: {}%".format(
+            int((self.visible_gates/self.count)*100)))
 
     '''
     FIXME: Memory leaks all over... Not easy to reuse a projector per thread.
     '''
     def run_multi_threaded(self):
         print("[*] Generating dataset...")
+        print("[*] Using {}x{} target resolution".format(self.target_width,
+                                                         self.target_height))
         save_thread = mp.threading.Thread(target=self.generated_dataset.save)
 
         with mp.Pool(self.nb_threads) as p:
@@ -123,58 +129,79 @@ class DatasetFactory:
                 save_thread.start()
                 self.projectors = []
                 for i in range(self.nb_threads):
-                    self.projectors.append(SceneRenderer(self.meshes_dir,
-                                                    self.base_width,
-                                                    self.base_height,
-                                                    self.world_boundaries, self.gate_center,
-                                                    self.cam_param, self.render_perspective,
-                                                    self.seed))
+                    self.projectors.append(
+                        SceneRenderer(self.meshes_dir, self.base_width,
+                                      self.base_height, self.world_boundaries,
+                                      self.cam_param, self.extra_verbose,
+                                      self.seed))
                 args = zip(range(max_), max_ * list(range(self.nb_threads)))
-                for i, _ in tqdm(enumerate(p.imap_unordered(self.generate, args))):
+                for i, _ in tqdm(
+                        enumerate(p.imap_unordered(self.generate, args))):
                     pbar.update()
                 p.close()
                 p.join()
                 self.generated_dataset.data.put(None)
                 save_thread.join()
                 print("[*] Saved to {}".format(self.generated_dataset.path))
+                print("[*] Gate visibilty percentage: {}%".format(
+                    int((self.visible_gates/self.count)*100)))
 
     def generate(self, index, projector):
         background = self.background_dataset.get()
         projector.set_drone_pose(background.annotations)
-        projection, annotations = projector.generate(min_dist=self.min_dist, max_gates=self.max_gates)
-        gate_center = self.scale_coordinates(annotations['gate_center_img_frame'], (self.target_width, self.target_height))
-        gate_visible = (gate_center[0] >=0 and gate_center[0] <=
-                        self.target_width) and (gate_center[1] >= 0 and
-                                             gate_center[1] <= self.target_height)
+        projection, annotations = projector.generate(min_dist=self.min_dist,
+                                                     max_gates=self.max_gates)
+        bboxes = annotations['bboxes']
+        gate_visible = len(bboxes) > 0
 
         if gate_visible:
-            projection_blurred = self.apply_motion_blur(projection,
-                                                    amount=self.get_blur_amount(background.image()))
+            projection_blurred = self.apply_motion_blur(
+                projection, amount=self.get_blur_amount(background.image()))
             projection_noised = self.add_noise(projection_blurred)
             projection = projection_noised
             self.visible_gates += 1
 
         output = self.combine(projection, background.image())
 
+        # TODO: Refactor (one-liner?)
+        scaled_bboxes = []
+        for bbox in bboxes:
+            scaled_bbox = bbox
+            for key, val in bbox.items():
+                if key in ['min', 'max']:
+                    scaled_bbox[key] = self.scale_coordinates(val, output.size)
+            scaled_bboxes.append(scaled_bbox)
+
         if self.verbose:
             if gate_visible:
-                self.draw_gate_center(output, gate_center)
-                normal = self.scale_coordinates(annotations['gate_normal'],
-                                                output.size)
-                self.draw_gate_normal(output, gate_center, normal)
+                # if annotations['closest_gate'] is not None:
+                    # normal = self.scale_coordinates(annotations['gate_normal'],
+                                                    # output.size)
+                    # closest_bbox = scaled_bboxes[annotations['closest_gate']]
+                    # self.draw_gate_normal(output, closest_bbox['min'], normal)
+                    # self.draw_gate_normal(output, closest_bbox['max'], normal)
+                self.draw_bounding_boxes(output, scaled_bboxes,
+                                         annotations['closest_gate'])
 
+        if self.extra_verbose:
             self.draw_image_annotations(output, annotations)
 
         self.generated_dataset.put(
-            AnnotatedImage(output, index, SyntheticAnnotations(gate_center,
-                                                               annotations['gate_rotation'],
-                                                               annotations['gate_distance'],
-                                                               gate_visible)))
+            AnnotatedImage(
+                output,
+                index,
+                SyntheticAnnotations(scaled_bboxes, annotations['gate_rotation'],
+                                     annotations['gate_distance'],
+                                     gate_visible)))
 
     # Scale to target width/height
     def scale_coordinates(self, coordinates, target_coordinates):
-        coordinates[0] = (coordinates[0] * target_coordinates[0]) / self.base_width
-        coordinates[1] = (coordinates[1] * target_coordinates[1]) / self.base_height
+        coordinates[0] = int(coordinates[0]
+                          * target_coordinates[0]
+                          / self.base_width)
+        coordinates[1] = int(coordinates[1]
+                          * target_coordinates[1]
+                          / self.base_height)
 
         return coordinates
 
@@ -182,10 +209,14 @@ class DatasetFactory:
     def combine(self, projection: Image, background: Image):
         background = background.convert('RGBA')
         if projection.size != (self.base_width, self.base_height):
-            projection.thumbnail((self.base_width, self.base_height), Image.ANTIALIAS)
+            projection.thumbnail(
+                (self.base_width, self.base_height),
+                Image.ANTIALIAS)
         output = Image.alpha_composite(background, projection)
         if output.size != (self.target_width, self.target_height):
-            output.thumbnail((self.target_width, self.target_height), Image.ANTIALIAS)
+            output.thumbnail(
+                (self.target_width, self.target_height),
+                Image.ANTIALIAS)
 
         return output
 
@@ -198,11 +229,9 @@ class DatasetFactory:
 
         return 1 - blur_amount
 
-    def equalize_histograms(self, img: Image, bg: Image):
-        pass
-
     def add_noise(self, img):
-        noisy_img = random_noise(img, mode='gaussian', var=self.noise_amount**2)
+        noisy_img = random_noise(img, mode='gaussian',
+                                 var=self.noise_amount**2)
         noisy_img = (255*noisy_img).astype(np.uint8)
 
         return Image.fromarray(noisy_img)
@@ -224,22 +253,29 @@ class DatasetFactory:
 
         return cv2.filter2D(cv_img, -1, kernel)
 
-    def draw_gate_center(self, img, coordinates, color="green"):
+    def draw_bounding_boxes(self, img, bboxes, closest_gate, color="yellow",
+                            closest_color="green"):
         gate_draw = ImageDraw.Draw(img)
-        gate_draw.line((coordinates[0] - 10, coordinates[1], coordinates[0] + 10,
-                   coordinates[1]), fill=color)
-        gate_draw.line((coordinates[0], coordinates[1] - 10, coordinates[0],
-                   coordinates[1] + 10), fill=color)
+        for i, bbox in enumerate(bboxes):
+            c = color
+            if closest_gate is not None and i == closest_gate:
+                c = closest_color
+            gate_draw.rectangle([(bbox['min'][0], bbox['min'][1]),
+                                 (bbox['max'][0], bbox['max'][1])],
+                                outline=c, width=3)
 
     def draw_gate_normal(self, img, center, normal_gt, color="red"):
         gate_draw = ImageDraw.Draw(img)
-        gate_draw.line((center[0], center[1], normal_gt[0], normal_gt[1]), fill=color, width=2)
+        gate_draw.line((center[0], center[1], normal_gt[0], normal_gt[1]),
+                       fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        text = "gate_center_image_frame: {}\ngate_distance: {}\ngate_rotation: {}\ndrone_pose: {}\ndrone_orientation:{}".format(
-            annotations['gate_center_img_frame'], annotations['gate_distance'],
-                annotations['gate_rotation'], annotations['drone_pose'],
-                annotations['drone_orientation'])
+        text = "\ngate_distance: {}\ngate_rotation:\ {}\ndrone_pose:\
+                {}\ndrone_orientation:{}".format(
+                    annotations['gate_distance'],
+                    annotations['gate_rotation'],
+                    annotations['drone_pose'],
+                    annotations['drone_orientation'])
         text_draw = ImageDraw.Draw(img)
         text_draw.text((0, 0), text, color)
 
@@ -250,11 +286,10 @@ if __name__ == "__main__":
         given 3D model, in random positions and orientations, onto randomly \
         selected background images from a given dataset.')
     parser.add_argument('meshes_dir', help='the 3D meshes directory containing'
-                        ' the models to project (along with textures)', type=str)
+                        ' the models to project (along with textures)',
+                        type=str)
     parser.add_argument('dataset', help='the path to the background images \
                         dataset', type=str)
-    parser.add_argument('annotations', help='the path to the CSV annotations\
-                        file, with height, roll, pitch and yaw annotations', type=str)
     parser.add_argument('destination', metavar='dest', help='the path\
                         to the destination folder for the generated dataset',
                         type=str)
@@ -273,7 +308,8 @@ if __name__ == "__main__":
     parser.add_argument('-vv', dest='extra_verbose', help='extra verbose\
                         output (render the perspective grid)',
                         action='store_true', default=False)
-    parser.add_argument('--seed', dest='seed', default=None, help='use a fixed seed')
+    parser.add_argument('--seed', dest='seed', default=None,
+                        help='use a fixed seed')
     parser.add_argument('--blur', dest='blur_threshold', default=200, type=int,
                         help='the blur threshold')
     parser.add_argument('--noise', dest='noise_amount', default=0.015,
@@ -285,12 +321,10 @@ if __name__ == "__main__":
     parser.add_argument('--min-dist', dest='min_dist', type=float, help='the\
                         minimum distance between each gate, in meter',
                         default=3.5)
-    parser.add_argument('--oos', dest='oos_percentage', default=0.15,
-                        type=float, help='the out-of-screen acceptance margin'
-                        ' for the gate center, in image frame percentage')
 
     datasetFactory = DatasetFactory(parser.parse_args())
+    # Real world boundaries in meters (relative to the mesh's scale)
     datasetFactory.set_world_parameters(
-        {'x': 10, 'y': 10}, # Real world boundaries in meters (relative to the mesh's scale)
+        {'x': 10, 'y': 10},
     )
     datasetFactory.run()

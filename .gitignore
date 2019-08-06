@@ -7,3 +7,4 @@ __pycache__/
 bg_dataset/
 */annotations.csv
 background_dataset_5ms
+test/
