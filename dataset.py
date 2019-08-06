@@ -132,9 +132,10 @@ class Dataset:
                 annotations = {}
                 annotations['classes'] = [
                     {'id': 0, 'label': 'Background'},
-                    {'id': 1, 'label': 'Closest gate'},
-                    {'id': 2, 'label': 'Backward gate'},
-                    {'id': 3, 'label': 'Forward gate'}
+                    {'id': 1, 'label': 'Target 1'},
+                    {'id': 2, 'label': 'Target 2'},
+                    {'id': 3, 'label': 'Forward gate'},
+                    {'id': 4, 'label': 'Backward gate'}
                 ]
                 annotations['annotations'] = []
                 json.dump(annotations, f, ensure_ascii=False, indent=4)

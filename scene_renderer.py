@@ -116,7 +116,7 @@ class SceneRenderer:
         ]
         fx, fy = camera_intrinsics[0][0], camera_intrinsics[1][1]
         cx, cy = camera_intrinsics[0][2], camera_intrinsics[1][2]
-        zfar, znear = 100.0, 0.1  # distances to the clipping plane
+        zfar, znear = 100.0, 0.5  # distances to the clipping plane
         self.projection = Matrix44([
             [fx/cx, 0, 0, 0],
             [0, fy/cy, 0, 0],
@@ -400,8 +400,10 @@ class SceneRenderer:
         self.context.clear(0, 0, 0, 0)
 
         min_prox = None
+        second_min_prox = None
         bounding_boxes = []
         closest_gate = None
+        second_closest = None
         n = 0
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
@@ -421,20 +423,26 @@ class SceneRenderer:
             if coords != {} and facing and (min_prox is None or proximity < min_prox):
                 closest_gate = n
                 min_prox = proximity
+            if coords != {} and facing and (second_min_prox is None
+                    or (proximity < second_min_prox and proximity > min_prox)):
+                second_closest = n
+                second_min_prox = proximity
 
             if coords != {}:
-                gate_rotation = Quaternion.from_z_rotation(0).angle
+                gate_rotation = None
                 gate_normal = []
                 gate_center = []
                 gate_distance = None
                 if facing:
                     gate_rotation = rotation.angle
-                    gate_distance = np.linalg.norm(self.drone_pose.translation - translation)
+                    gate_distance = np.linalg.norm(
+                        self.drone_pose.translation - translation)
                     gate_normal = self.compute_gate_normal(mesh, view, model)
                     gate_center = self.compute_gate_center(mesh, view, model)
 
                 bounding_boxes.append({
-                    'class_id': 3 if facing else 2,
+                    'facing': facing,
+                    'class_id': 3 if facing else 4,
                     'min': [coords['min'][0], coords['min'][1]],
                     'max': [coords['max'][0], coords['max'][1]],
                     'normal': {'origin': gate_center, 'end': gate_normal},
@@ -444,9 +452,10 @@ class SceneRenderer:
                 n += 1
 
         # Update the target gate's class
+        if second_closest is not None:
+            bounding_boxes[second_closest]['class_id'] = 2
         if closest_gate is not None:
             bounding_boxes[closest_gate]['class_id'] = 1
-
 
         if self.render_perspective:
             self.render_perspective_grid(view)
@@ -461,6 +470,7 @@ class SceneRenderer:
         annotations = {
             'bboxes': bounding_boxes,
             'closest_gate': closest_gate,
+            'second_closest_gate': second_closest,
             'drone_pose': self.drone_pose.translation,
             'drone_orientation': self.drone_pose.orientation
         }
