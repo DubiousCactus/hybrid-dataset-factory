@@ -67,15 +67,13 @@ class SceneRenderer:
                         obj_file = Obj.open(os.path.join(path, file_name))
                         contour_obj_front_file = Obj.open(
                             os.path.join(path,
-                                         file_name.split('_')[0]
-                                         + '_contour_front.obj'))
+                                         mesh_attributes[file_name]['contour_front']))
                         contour_obj_back_file = Obj.open(
                             os.path.join(path,
-                                         file_name.split('_')[0]
-                                         + '_contour_back.obj'))
+                                         mesh_attributes[file_name]['contour_back']))
                         contour_png = Image.open(
                             os.path.join(
-                                path, file_name.split('_')[0] + '.png')
+                                path, mesh_attributes[file_name]['texture'])
                         ).transpose(Image.FLIP_LEFT_RIGHT).transpose(
                             Image.FLIP_TOP_BOTTOM).convert('RGB')
                         contour_texture = self.context.texture(
@@ -86,8 +84,8 @@ class SceneRenderer:
 
                     meshes[file_name] = {
                         'center': Vector3(mesh_attributes[file_name]['center']),
-                        'height': mesh_attributes[file_name]['height'],
                         'width': mesh_attributes[file_name]['width'],
+                        'height': mesh_attributes[file_name]['height'],
                         'contour_obj_front': contour_obj_front_file,
                         'contour_obj_back': contour_obj_back_file,
                         'contour_texture': contour_texture,
