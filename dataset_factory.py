@@ -170,18 +170,18 @@ class DatasetFactory:
             for key, val in bbox.items():
                 if key in ['min', 'max']:
                     scaled_bbox[key] = self.scale_coordinates(val, output.size)
+                elif key == 'normal' and bbox['class_id'] != 2:
+                    scaled_bbox[key]['origin'] = self.scale_coordinates(
+                        val['origin'], output.size)
+                    scaled_bbox[key]['end'] = self.scale_coordinates(
+                        val['end'], output.size)
             scaled_bboxes.append(scaled_bbox)
 
         if self.verbose:
             if gate_visible:
-                # if annotations['closest_gate'] is not None:
-                    # normal = self.scale_coordinates(annotations['gate_normal'],
-                                                    # output.size)
-                    # closest_bbox = scaled_bboxes[annotations['closest_gate']]
-                    # self.draw_gate_normal(output, closest_bbox['min'], normal)
-                    # self.draw_gate_normal(output, closest_bbox['max'], normal)
                 self.draw_bounding_boxes(output, scaled_bboxes,
                                          annotations['closest_gate'])
+                self.draw_normals(output, scaled_bboxes)
 
         if self.extra_verbose:
             self.draw_image_annotations(output, annotations)
@@ -190,9 +190,7 @@ class DatasetFactory:
             AnnotatedImage(
                 output,
                 index,
-                SyntheticAnnotations(scaled_bboxes, annotations['gate_rotation'],
-                                     annotations['gate_distance'],
-                                     gate_visible)))
+                SyntheticAnnotations(scaled_bboxes)))
 
     # Scale to target width/height
     def scale_coordinates(self, coordinates, target_coordinates):
@@ -263,6 +261,12 @@ class DatasetFactory:
             gate_draw.rectangle([(bbox['min'][0], bbox['min'][1]),
                                  (bbox['max'][0], bbox['max'][1])],
                                 outline=c, width=3)
+
+    def draw_normals(self, img, bboxes):
+        for bbox in bboxes:
+            if bbox['class_id'] != 2:
+                self.draw_gate_normal(img, bbox['normal']['origin'],
+                                      bbox['normal']['end'])
 
     def draw_gate_normal(self, img, center, normal_gt, color="red"):
         gate_draw = ImageDraw.Draw(img)

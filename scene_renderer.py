@@ -248,7 +248,7 @@ class SceneRenderer:
     '''
         Converting the gate center's world coordinates to image coordinates
     '''
-    def compute_gate_center(self, mesh, view, model, gate_dist):
+    def compute_gate_center(self, mesh, view, model):
         # Return if the camera is within 0.6cm of the gate, because it's not
         # visible
         mesh_center = model * mesh['center']
@@ -399,9 +399,6 @@ class SceneRenderer:
         self.context.enable(moderngl.DEPTH_TEST)
         self.context.clear(0, 0, 0, 0)
 
-        gate_rotation = Quaternion()
-        gate_normal = None
-        gate_distance = None
         min_prox = None
         bounding_boxes = []
         closest_gate = None
@@ -424,14 +421,25 @@ class SceneRenderer:
             if coords != {} and facing and (min_prox is None or proximity < min_prox):
                 closest_gate = n
                 min_prox = proximity
-                gate_rotation = rotation
-                gate_distance = np.linalg.norm(self.drone_pose.translation - translation)
-                gate_normal = self.compute_gate_normal(mesh, view, model)
+
             if coords != {}:
+                gate_rotation = Quaternion.from_z_rotation(0).angle
+                gate_normal = []
+                gate_center = []
+                gate_distance = None
+                if facing:
+                    gate_rotation = rotation.angle
+                    gate_distance = np.linalg.norm(self.drone_pose.translation - translation)
+                    gate_normal = self.compute_gate_normal(mesh, view, model)
+                    gate_center = self.compute_gate_center(mesh, view, model)
+
                 bounding_boxes.append({
                     'class_id': 3 if facing else 2,
                     'min': [coords['min'][0], coords['min'][1]],
-                    'max': [coords['max'][0], coords['max'][1]]
+                    'max': [coords['max'][0], coords['max'][1]],
+                    'normal': {'origin': gate_center, 'end': gate_normal},
+                    'distance': gate_distance,
+                    'rotation': gate_rotation
                 })
                 n += 1
 
@@ -453,9 +461,6 @@ class SceneRenderer:
         annotations = {
             'bboxes': bounding_boxes,
             'closest_gate': closest_gate,
-            'gate_rotation': gate_rotation,
-            'gate_distance': gate_distance,
-            'gate_normal': gate_normal,
             'drone_pose': self.drone_pose.translation,
             'drone_orientation': self.drone_pose.orientation
         }

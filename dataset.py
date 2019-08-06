@@ -40,11 +40,8 @@ class BackgroundImage:
 
 
 class SyntheticAnnotations:
-    def __init__(self, bboxes, orientation: Quaternion, distance: float, on_screen: bool):
+    def __init__(self, bboxes):
         self.bboxes = bboxes
-        self.orientation = orientation
-        self.distance = distance
-        self.on_screen = 1 if on_screen else 0
 
 
 '''
@@ -159,6 +156,8 @@ class Dataset:
                     'ymin': bbox['min'][1],
                     'xmax': bbox['max'][0],
                     'ymax': bbox['max'][1],
+                    'distance': bbox['distance'],
+                    'rotation': bbox['rotation']
                 })
 
             annotation = {
