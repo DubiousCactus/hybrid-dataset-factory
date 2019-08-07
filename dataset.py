@@ -67,6 +67,7 @@ class Dataset:
         self.height = None
         self.data = Queue(maxsize=max)
         self.saving = False
+        self.annotations = dict()
 
     def parse_annotations(self, path: str):
         if not os.path.isfile(path):
@@ -125,7 +126,7 @@ class Dataset:
         self.data.put(image)
 
     # Runs in a thread
-    def save(self):
+    def save_json_live(self):
         if not self.saving:
             with open(os.path.join(self.path, 'annotations.json'),
                       'w', encoding='UTF-8') as f:
@@ -175,6 +176,51 @@ class Dataset:
             with open(os.path.join(self.path, 'annotations.json'),
                       'w', encoding='UTF-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
+
+    def save_json(self):
+        if not self.saving:
+            self.annotations['classes'] = [
+                {'id': 0, 'label': 'Background'},
+                {'id': 1, 'label': 'Target 1'},
+                {'id': 2, 'label': 'Target 2'},
+                {'id': 3, 'label': 'Forward gate'},
+                {'id': 4, 'label': 'Backward gate'}
+            ]
+            self.annotations['annotations'] = []
+
+            self.saving = True
+            if not os.path.isdir(os.path.join(self.path, 'images')):
+                os.mkdir(os.path.join(self.path, 'images'))
+
+        for annotatedImage in iter(self.data.get, None):
+            name = "%06d.png" % annotatedImage.id
+            annotatedImage.image.save(
+                os.path.join(self.path, 'images', name)
+            )
+            bboxes = []
+            for bbox in annotatedImage.annotations.bboxes:
+                bboxes.append({
+                    'class_id': bbox['class_id'],
+                    'xmin': bbox['min'][0],
+                    'ymin': bbox['min'][1],
+                    'xmax': bbox['max'][0],
+                    'ymax': bbox['max'][1],
+                    'distance': bbox['distance'],
+                    'rotation': bbox['rotation']
+                })
+
+            annotation = {
+                'image': name,
+                'annotations': bboxes
+            }
+
+            self.annotations['annotations'].append(annotation)
+
+
+    def flush_json(self):
+        with open(os.path.join(self.path, 'annotations.json'),
+                  'w', encoding='UTF-8') as f:
+            json.dump(self.annotations, f, ensure_ascii=False, indent=4)
 
     def get_image_size(self):
         print("[*] Using {}x{} base resolution".format(self.width, self.height))

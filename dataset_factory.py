@@ -97,7 +97,7 @@ class DatasetFactory:
         print("[*] Generating dataset...")
         print("[*] Using {}x{} target resolution".format(self.target_width,
                                                          self.target_height))
-        save_thread = mp.threading.Thread(target=self.generated_dataset.save)
+        save_thread = mp.threading.Thread(target=self.generated_dataset.save_json)
         projector = SceneRenderer(self.meshes_dir, self.base_width,
                                   self.base_height, self.world_boundaries,
                                   self.cam_param, self.extra_verbose,
@@ -110,6 +110,8 @@ class DatasetFactory:
 
         self.generated_dataset.data.put(None)
         save_thread.join()
+        print("[*] Flushing annotations file...")
+        self.generated_dataset.flush_json()
         print("[*] Saved to {}".format(self.generated_dataset.path))
         print("[*] Gate visibilty percentage: {}%".format(
             int((self.visible_gates/self.count)*100)))
@@ -121,8 +123,9 @@ class DatasetFactory:
         print("[*] Generating dataset...")
         print("[*] Using {}x{} target resolution".format(self.target_width,
                                                          self.target_height))
-        save_thread = mp.threading.Thread(target=self.generated_dataset.save)
+        save_thread = mp.threading.Thread(target=self.generated_dataset.save_json)
 
+        with mp.Pool(self.nb_threads)
         with mp.Pool(self.nb_threads) as p:
             max_ = self.count
             with tqdm(total=max_) as pbar:
@@ -282,10 +285,7 @@ class DatasetFactory:
                        fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        text = "\ngate_distance: {}\ngate_rotation:\ {}\ndrone_pose:\
-                {}\ndrone_orientation:{}".format(
-                    annotations['gate_distance'],
-                    annotations['gate_rotation'],
+        text = "\ndrone_pose: {}\ndrone_orientation:{}".format(
                     annotations['drone_pose'],
                     annotations['drone_orientation'])
         text_draw = ImageDraw.Draw(img)

@@ -12,6 +12,7 @@ SceneRenderer
 Generates an image by projecting a 3D mesh over a 2D transparent background.
 """
 
+import pysnooper
 
 import numpy as np
 import moderngl
@@ -399,11 +400,9 @@ class SceneRenderer:
         self.context.enable(moderngl.DEPTH_TEST)
         self.context.clear(0, 0, 0, 0)
 
-        min_prox = None
-        second_min_prox = None
         bounding_boxes = []
-        closest_gate = None
-        second_closest = None
+        distances = []
+        closest_gate, second_closest = None, None
         n = 0
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
@@ -419,14 +418,8 @@ class SceneRenderer:
             proximity = self.compute_camera_proximity(model, mesh)
             coords = self.compute_bbox_coords(model, mesh, view)
 
-            # Pick the target gate: the closest to the camera
-            if coords != {} and facing and (min_prox is None or proximity < min_prox):
-                closest_gate = n
-                min_prox = proximity
-            if coords != {} and facing and (second_min_prox is None
-                    or (proximity < second_min_prox and proximity > min_prox)):
-                second_closest = n
-                second_min_prox = proximity
+            if coords != {} and facing:
+                distances.append((n, proximity))
 
             if coords != {}:
                 gate_rotation = None
@@ -435,8 +428,7 @@ class SceneRenderer:
                 gate_distance = None
                 if facing:
                     gate_rotation = rotation.angle
-                    gate_distance = np.linalg.norm(
-                        self.drone_pose.translation - translation)
+                    gate_distance = proximity
                     gate_normal = self.compute_gate_normal(mesh, view, model)
                     gate_center = self.compute_gate_center(mesh, view, model)
 
@@ -452,10 +444,13 @@ class SceneRenderer:
                 n += 1
 
         # Update the target gate's class
-        if second_closest is not None:
-            bounding_boxes[second_closest]['class_id'] = 2
-        if closest_gate is not None:
-            bounding_boxes[closest_gate]['class_id'] = 1
+        distances.sort(key=lambda t: t[1])
+        if len(distances) > 0:
+            bounding_boxes[distances[0][0]]['class_id'] = 1
+            closest_gate = distances[0][0]
+        if len(distances) > 1:
+            bounding_boxes[distances[1][0]]['class_id'] = 2
+            second_closest = distances[1][0]
 
         if self.render_perspective:
             self.render_perspective_grid(view)
