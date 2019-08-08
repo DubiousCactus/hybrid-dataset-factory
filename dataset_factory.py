@@ -49,10 +49,9 @@ from dataset import Dataset, AnnotatedImage, SyntheticAnnotations
 [x] Ensure that the gate is always oriented towards the camera (for the
     annotation)
 [x] Save annotations
-[ ] Refactor DatasetFactory (create augentation class)
+[ ] Refactor DatasetFactory (create augmentation class)
 [ ] Refactor SceneRenderer (use an interface to let users script their scene)
 [ ] Apply the distortion to the OpenGL projection
-[ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 [x] Add variation to the mesh and texture
 [x] Motion blur
 [x] Anti alisasing
@@ -116,38 +115,6 @@ class DatasetFactory:
         print("[*] Gate visibilty percentage: {}%".format(
             int((self.visible_gates/self.count)*100)))
 
-    '''
-    FIXME: Memory leaks all over... Not easy to reuse a projector per thread.
-    '''
-    def run_multi_threaded(self):
-        print("[*] Generating dataset...")
-        print("[*] Using {}x{} target resolution".format(self.target_width,
-                                                         self.target_height))
-        save_thread = mp.threading.Thread(target=self.generated_dataset.save_json)
-
-        with mp.Pool(self.nb_threads)
-        with mp.Pool(self.nb_threads) as p:
-            max_ = self.count
-            with tqdm(total=max_) as pbar:
-                save_thread.start()
-                self.projectors = []
-                for i in range(self.nb_threads):
-                    self.projectors.append(
-                        SceneRenderer(self.meshes_dir, self.base_width,
-                                      self.base_height, self.world_boundaries,
-                                      self.cam_param, self.extra_verbose,
-                                      self.seed))
-                args = zip(range(max_), max_ * list(range(self.nb_threads)))
-                for i, _ in tqdm(
-                        enumerate(p.imap_unordered(self.generate, args))):
-                    pbar.update()
-                p.close()
-                p.join()
-                self.generated_dataset.data.put(None)
-                save_thread.join()
-                print("[*] Saved to {}".format(self.generated_dataset.path))
-                print("[*] Gate visibilty percentage: {}%".format(
-                    int((self.visible_gates/self.count)*100)))
 
     def generate(self, index, projector):
         background = self.background_dataset.get()
