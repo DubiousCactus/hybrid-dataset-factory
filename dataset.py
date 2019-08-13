@@ -181,10 +181,7 @@ class Dataset:
         if not self.saving:
             self.annotations['classes'] = [
                 {'id': 0, 'label': 'Background'},
-                {'id': 1, 'label': 'Target 1'},
-                {'id': 2, 'label': 'Target 2'},
-                {'id': 3, 'label': 'Forward gate'},
-                {'id': 4, 'label': 'Backward gate'}
+                {'id': 1, 'label': 'Candidate'},
             ]
             self.annotations['annotations'] = []
 

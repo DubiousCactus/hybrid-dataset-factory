@@ -26,7 +26,6 @@ from PIL import Image
 
 
 class SceneRenderer:
-    gl_version = (3, 3)
     def __init__(self, meshes_dir: str, width: int, height: int,
                  world_boundaries, camera_parameters, render_perspective=False,
                  seed=None):
@@ -150,11 +149,22 @@ class SceneRenderer:
                     break
 
         self.gate_poses.append(gate_translation)
+        mesh = self.meshes[random.choice(list(self.meshes.keys()))]
 
-        ''' Randomly rotate the gate horizontally, around the Z-axis '''
-        gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
+        facing = False
+        while not facing:
+            ''' Randomly rotate the gate horizontally, around the Z-axis '''
+            gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
+            model = Matrix44.from_translation(gate_translation) * gate_rotation
+            leftmost_point = model * Vector3(
+                [mesh['center'][0] - 20, mesh['center'][1], 0])
+            rightmost_point = model * Vector3(
+                [mesh['center'][0] + 20, mesh['center'][1], 0])
+            cross_product = (rightmost_point -
+                             leftmost_point).cross(self.drone_pose.translation -
+                                                   leftmost_point)
+            facing = True if cross_product.z >= 0 else False
 
-        model = Matrix44.from_translation(gate_translation) * gate_rotation
         # With respect to the camera, for the annotation
         gate_orientation = Matrix33(
             self.drone_pose.orientation) * Matrix33(gate_rotation)
@@ -186,7 +196,6 @@ class SceneRenderer:
             # random.uniform(4, 7))
         prog['MVP'].write(mvp.astype('f4').tobytes())
 
-        mesh = self.meshes[random.choice(list(self.meshes.keys()))]
         frame_vbo = self.context.buffer(
             mesh['obj'].pack('vx vy vz nx ny nz tx ty'))
         frame_vao = self.context.simple_vertex_array(
@@ -282,9 +291,9 @@ class SceneRenderer:
 
         vp = self.projection * view
         grid_prog['Light1'].value = (0.0, 0.0, 3.0)
-        grid_prog['Light2'].value = (3.0, 0.0, 3.0)
-        grid_prog['Light3'].value = (-3.0, 0.0, 3.0)
-        grid_prog['Light4'].value = (0.0, 6.0, 3.0)
+        # grid_prog['Light2'].value = (3.0, 0.0, 3.0)
+        # grid_prog['Light3'].value = (-3.0, 0.0, 3.0)
+        # grid_prog['Light4'].value = (0.0, 6.0, 3.0)
         grid_prog['UseTexture'].value = False;
         grid_prog['Color'].value = (0.0, 1.0, 0.0)
         grid_prog['MVP'].write(vp.astype('f4').tobytes())
@@ -401,40 +410,22 @@ class SceneRenderer:
         self.context.clear(0, 0, 0, 0)
 
         bounding_boxes = []
-        distances = []
         closest_gate, second_closest = None, None
         n = 0
         # Render at least one gate
         for i in range(random.randint(1, max_gates)):
             mesh, model, translation, rotation = self.render_gate(view, min_dist)
-            leftmost_point = model * Vector3(
-                [mesh['center'][0] - 20, mesh['center'][1], 0])
-            rightmost_point = model * Vector3(
-                [mesh['center'][0] + 20, mesh['center'][1], 0])
-            cross_product = (rightmost_point -
-                             leftmost_point).cross(self.drone_pose.translation -
-                                                   leftmost_point)
-            facing = True if cross_product.z >= 0 else False
             proximity = self.compute_camera_proximity(model, mesh)
             coords = self.compute_bbox_coords(model, mesh, view)
 
-            if coords != {} and facing:
-                distances.append((n, proximity))
-
             if coords != {}:
-                gate_rotation = None
-                gate_normal = []
-                gate_center = []
-                gate_distance = None
-                if facing:
-                    gate_rotation = rotation.angle
-                    gate_distance = proximity
-                    gate_normal = self.compute_gate_normal(mesh, view, model)
-                    gate_center = self.compute_gate_center(mesh, view, model)
+                gate_rotation = rotation.angle
+                gate_distance = proximity
+                gate_normal = self.compute_gate_normal(mesh, view, model)
+                gate_center = self.compute_gate_center(mesh, view, model)
 
                 bounding_boxes.append({
-                    'facing': facing,
-                    'class_id': 3 if facing else 4,
+                    'class_id': 1,
                     'min': [coords['min'][0], coords['min'][1]],
                     'max': [coords['max'][0], coords['max'][1]],
                     'normal': {'origin': gate_center, 'end': gate_normal},
@@ -442,15 +433,6 @@ class SceneRenderer:
                     'rotation': gate_rotation
                 })
                 n += 1
-
-        # Update the target gate's class
-        distances.sort(key=lambda t: t[1])
-        if len(distances) > 0:
-            bounding_boxes[distances[0][0]]['class_id'] = 1
-            closest_gate = distances[0][0]
-        if len(distances) > 1:
-            bounding_boxes[distances[1][0]]['class_id'] = 2
-            second_closest = distances[1][0]
 
         if self.render_perspective:
             self.render_perspective_grid(view)
@@ -464,8 +446,6 @@ class SceneRenderer:
 
         annotations = {
             'bboxes': bounding_boxes,
-            'closest_gate': closest_gate,
-            'second_closest_gate': second_closest,
             'drone_pose': self.drone_pose.translation,
             'drone_orientation': self.drone_pose.orientation
         }

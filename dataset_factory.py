@@ -140,7 +140,7 @@ class DatasetFactory:
             for key, val in bbox.items():
                 if key in ['min', 'max']:
                     scaled_bbox[key] = self.scale_coordinates(val, output.size)
-                elif key == 'normal' and bbox['facing']:
+                elif key == 'normal':
                     scaled_bbox[key]['origin'] = self.scale_coordinates(
                         val['origin'], output.size)
                     scaled_bbox[key]['end'] = self.scale_coordinates(
@@ -149,9 +149,7 @@ class DatasetFactory:
 
         if self.verbose:
             if gate_visible:
-                self.draw_bounding_boxes(output, scaled_bboxes,
-                                         annotations['closest_gate'],
-                                         annotations['second_closest_gate'])
+                self.draw_bounding_boxes(output, scaled_bboxes)
                 self.draw_normals(output, scaled_bboxes)
 
         if self.extra_verbose:
@@ -222,17 +220,15 @@ class DatasetFactory:
 
         return cv2.filter2D(cv_img, -1, kernel)
 
-    def draw_bounding_boxes(self, img, bboxes, closest_gate, second_closest):
-        colors = ['red', 'blue', 'green', 'purple']
-        classes = ['Target 1', 'Target 2', 'Forward gate', 'Backward gate']
+    def draw_bounding_boxes(self, img, bboxes):
         gate_draw = ImageDraw.Draw(img)
         for i, bbox in enumerate(bboxes):
-            color = colors[int(bbox['class_id'])-1]
+            color = 'green'
             xmin, ymin = bbox['min'][0], bbox['min'][1]
             xmax, ymax = bbox['max'][0], bbox['max'][1]
             gate_draw.rectangle([(xmin, ymin), (xmax, ymax)],
                                 outline=color, width=2)
-            label = '{}'.format(classes[int(bbox['class_id'])-1])
+            label = "Candidate"
             textSize = gate_draw.textsize(label)
             gate_draw.rectangle((
                 (xmin-2, ymin-2),
@@ -242,9 +238,8 @@ class DatasetFactory:
 
     def draw_normals(self, img, bboxes):
         for bbox in bboxes:
-            if bbox['facing']:
-                self.draw_gate_normal(img, bbox['normal']['origin'],
-                                      bbox['normal']['end'])
+            self.draw_gate_normal(img, bbox['normal']['origin'],
+                                  bbox['normal']['end'])
 
     def draw_gate_normal(self, img, center, normal_gt, color="red"):
         gate_draw = ImageDraw.Draw(img)
