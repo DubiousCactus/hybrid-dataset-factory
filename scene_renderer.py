@@ -22,6 +22,7 @@ import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4
 from ModernGL.ext.obj import Obj
+from math import atan2
 from PIL import Image
 
 
@@ -166,9 +167,9 @@ class SceneRenderer:
             facing = True if cross_product.z >= 0 else False
 
         # With respect to the camera, for the annotation
-        gate_orientation = Matrix33(
-            self.drone_pose.orientation) * Matrix33(gate_rotation)
-        gate_orientation = Quaternion.from_matrix(gate_orientation)
+        camera_yaw = self.euler_yaw(self.drone_pose.orientation)
+        gate_yaw = self.euler_yaw(model.quaternion)
+        gate_orientation = (camera_yaw- gate_yaw)
         # Model View Projection matrix
         mvp = self.projection * view * model
 
@@ -247,6 +248,12 @@ class SceneRenderer:
         image_frame_vector[1] = self.height - image_frame_vector[1]
 
         return image_frame_vector
+
+    def euler_yaw(self, q):
+        siny_cosp = 2.0 * ((q.w * q.z) + (q.x * q.y))
+        cosy_cosp = 1.0 - (2.0 * ((q.y * q.y) + (q.z * q.z)))
+
+        return atan2(siny_cosp, cosy_cosp) * (180.0/np.pi)
 
     '''
         Converting the gate normal's world coordinates to image coordinates
@@ -419,7 +426,7 @@ class SceneRenderer:
             coords = self.compute_bbox_coords(model, mesh, view)
 
             if coords != {}:
-                gate_rotation = rotation.angle
+                gate_rotation = rotation
                 gate_distance = proximity
                 gate_normal = self.compute_gate_normal(mesh, view, model)
                 gate_center = self.compute_gate_center(mesh, view, model)
