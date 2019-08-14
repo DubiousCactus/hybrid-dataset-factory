@@ -12,8 +12,6 @@ SceneRenderer
 Generates an image by projecting a 3D mesh over a 2D transparent background.
 """
 
-import pysnooper
-
 import numpy as np
 import moderngl
 import random
