@@ -214,11 +214,6 @@ class Dataset:
             self.annotations['annotations'].append(annotation)
 
 
-    def flush_json(self):
-        with open(os.path.join(self.path, 'annotations.json'),
-                  'w', encoding='UTF-8') as f:
-            json.dump(self.annotations, f, ensure_ascii=False, indent=4)
-
     def get_image_size(self):
         print("[*] Using {}x{} base resolution".format(self.width, self.height))
         return (self.width, self.height)
