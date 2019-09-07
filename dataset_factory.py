@@ -102,10 +102,15 @@ class DatasetFactory:
                                   self.cam_param, self.extra_verbose,
                                   self.seed)
         save_thread.start()
-        for i in tqdm(range(self.count),
-                      unit="img",
-                      bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}"):
-            self.generate(i, projector)
+        i = 0
+        pbar = tqdm(range(self.count), unit="img",
+                      bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
+        while i < self.count:
+            if self.generate(i, projector):
+                i += 1
+                pbar.update(1)
+
+        pbar.close()
 
         self.generated_dataset.data.put(None)
         save_thread.join()
@@ -113,7 +118,7 @@ class DatasetFactory:
         self.generated_dataset.flush_json()
         print("[*] Saved to {}".format(self.generated_dataset.path))
         print("[*] Gate visibilty percentage: {}%".format(
-            int((self.visible_gates/self.count)*100)))
+            int((self.visible_gates/i)*100)))
 
 
     def generate(self, index, projector):
@@ -121,6 +126,9 @@ class DatasetFactory:
         projector.set_drone_pose(background.annotations)
         projection, annotations = projector.generate(min_dist=self.min_dist,
                                                      max_gates=self.max_gates)
+        if projection is None:
+            return False
+
         bboxes = annotations['bboxes']
         gate_visible = len(bboxes) > 0
 
@@ -155,11 +163,13 @@ class DatasetFactory:
         if self.extra_verbose:
             self.draw_image_annotations(output, annotations)
 
+
         self.generated_dataset.put(
             AnnotatedImage(
                 output,
                 index,
                 SyntheticAnnotations(scaled_bboxes)))
+        return True
 
     # Scale to target width/height
     def scale_coordinates(self, coordinates, target_coordinates):
@@ -247,9 +257,13 @@ class DatasetFactory:
                        fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        text = "\ndrone_pose: {}\ndrone_orientation:{}".format(
+        if len(annotations['bboxes']) < 1:
+            print("HEY!", annotations)
+            return
+        text = "\ndrone_pose: {}\ndrone_orientation:{}\ngate_rotation:{}".format(
                     annotations['drone_pose'],
-                    annotations['drone_orientation'])
+                    annotations['drone_orientation'],
+                    annotations['bboxes'][0]['rotation'])
         text_draw = ImageDraw.Draw(img)
         text_draw.text((0, 0), text, color)
 

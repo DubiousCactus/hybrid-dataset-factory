@@ -15,12 +15,13 @@ Generates an image by projecting a 3D mesh over a 2D transparent background.
 import numpy as np
 import moderngl
 import random
+import copy
 import yaml
 import os
 
 from pyrr import Matrix33, Matrix44, Quaternion, Vector3, Vector4
 from ModernGL.ext.obj import Obj
-from math import atan2
+from math import atan2, cos, sin
 from PIL import Image
 
 
@@ -132,27 +133,57 @@ class SceneRenderer:
             boundaries
         '''
         gate_translation = None
-        too_close = True
-        # Prevent gates from spawning too close to each other
-        while too_close:
-            too_close = False
+        in_fov = False
+        max_tries = 100
+        mesh = self.meshes[random.choice(list(self.meshes.keys()))]
+
+        while not in_fov:
+            if max_tries == 0:
+                return (None, None, None, None)
+
             gate_translation = Vector3([
                 random.uniform(-self.boundaries['x'], self.boundaries['x']),
                 random.uniform(-self.boundaries['y'], self.boundaries['y']),
                 0
             ])
-            for gate_pose in self.gate_poses:
-                if (np.linalg.norm(gate_pose - gate_translation)
-                        <= float(min_dist)):
-                    too_close = True
+            gate_center = copy.deepcopy(gate_translation)
+            gate_center.z = mesh['center'][2]
+            gate_top = copy.deepcopy(gate_translation)
+            gate_top.z = mesh['center'][2] + (mesh['height']/2)
+            gate_left = copy.deepcopy(gate_translation)
+            gate_left.z = mesh['center'][2]
+            gate_left.x -= mesh['width']/2
+            gate_right = copy.deepcopy(gate_translation)
+            gate_right.z = mesh['center'][2]
+            gate_right.x += mesh['width']/2
+            points = [gate_center, gate_left, gate_right, gate_top]
+            in_fov = True
+            for p in points:
+                clip_space_vector = self.projection * (view
+                                           * Vector4.from_vector3(p, w=1.0))
+                if clip_space_vector.w != 0:
+                    nds_vector = Vector3(clip_space_vector.xyz) / clip_space_vector.w
+                else:  # Clipped
+                    nds_vector = clip_space_vector.xyz
+
+                if nds_vector.z >= 1:
+                    in_fov = False
+                    continue
+
+                if not (nds_vector.x >= -1 and nds_vector.x <= 1
+                        and nds_vector.y >= -1 and nds_vector.y <= 1):
+                    in_fov = False
                     break
+            max_tries -= 1
 
         self.gate_poses.append(gate_translation)
-        mesh = self.meshes[random.choice(list(self.meshes.keys()))]
 
         facing = False
+        max_tries = 100
         while not facing:
             ''' Randomly rotate the gate horizontally, around the Z-axis '''
+            if max_tries == 0:
+                return (None, None, None, None)
             gate_rotation = Quaternion.from_z_rotation(random.random() * np.pi)
             model = Matrix44.from_translation(gate_translation) * gate_rotation
             leftmost_point = model * Vector3(
@@ -163,11 +194,16 @@ class SceneRenderer:
                              leftmost_point).cross(self.drone_pose.translation -
                                                    leftmost_point)
             facing = True if cross_product.z >= 0 else False
+            # With respect to the camera, for the annotation
+            camera_yaw = self.euler_yaw(self.drone_pose.orientation)
+            gate_yaw = self.euler_yaw(model.quaternion)
+            gate_orientation = camera_yaw - gate_yaw
+            if gate_orientation < 0:
+                gate_orientation += 180
+            if gate_orientation > 160 or gate_orientation < 20:
+                facing = False
+            max_tries -= 1
 
-        # With respect to the camera, for the annotation
-        camera_yaw = self.euler_yaw(self.drone_pose.orientation)
-        gate_yaw = self.euler_yaw(model.quaternion)
-        gate_orientation = camera_yaw - gate_yaw
         # Model View Projection matrix
         mvp = self.projection * view * model
 
@@ -417,27 +453,28 @@ class SceneRenderer:
         bounding_boxes = []
         closest_gate, second_closest = None, None
         n = 0
-        # Render at least one gate
-        for i in range(random.randint(1, max_gates)):
-            mesh, model, translation, rotation = self.render_gate(view, min_dist)
-            proximity = self.compute_camera_proximity(model, mesh)
-            coords = self.compute_bbox_coords(model, mesh, view)
+        # Render one gate
+        mesh, model, translation, rotation = self.render_gate(view, min_dist)
+        if mesh == None:
+            return (None, None)
 
-            if coords != {}:
-                gate_rotation = rotation
-                gate_distance = proximity
-                gate_normal = self.compute_gate_normal(mesh, view, model)
-                gate_center = self.compute_gate_center(mesh, view, model)
+        proximity = self.compute_camera_proximity(model, mesh)
+        coords = self.compute_bbox_coords(model, mesh, view)
 
-                bounding_boxes.append({
-                    'class_id': 1,
-                    'min': [coords['min'][0], coords['min'][1]],
-                    'max': [coords['max'][0], coords['max'][1]],
-                    'normal': {'origin': gate_center, 'end': gate_normal},
-                    'distance': gate_distance,
-                    'rotation': gate_rotation
-                })
-                n += 1
+        if coords != {}:
+            gate_distance = proximity
+            gate_normal = self.compute_gate_normal(mesh, view, model)
+            gate_center = self.compute_gate_center(mesh, view, model)
+
+            bounding_boxes.append({
+                'class_id': 1,
+                'min': [coords['min'][0], coords['min'][1]],
+                'max': [coords['max'][0], coords['max'][1]],
+                'normal': {'origin': gate_center, 'end': gate_normal},
+                'distance': gate_distance,
+                'rotation': rotation
+            })
+            n += 1
 
         if self.render_perspective:
             self.render_perspective_grid(view)
