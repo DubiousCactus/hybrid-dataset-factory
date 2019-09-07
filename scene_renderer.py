@@ -167,7 +167,7 @@ class SceneRenderer:
         # With respect to the camera, for the annotation
         camera_yaw = self.euler_yaw(self.drone_pose.orientation)
         gate_yaw = self.euler_yaw(model.quaternion)
-        gate_orientation = (camera_yaw- gate_yaw)
+        gate_orientation = camera_yaw - gate_yaw
         # Model View Projection matrix
         mvp = self.projection * view * model
 
