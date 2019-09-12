@@ -96,7 +96,7 @@ class DatasetFactory:
         print("[*] Generating dataset...")
         print("[*] Using {}x{} target resolution".format(self.target_width,
                                                          self.target_height))
-        save_thread = mp.threading.Thread(target=self.generated_dataset.save_json)
+        save_thread = mp.threading.Thread(target=self.generated_dataset.save_json_live)
         projector = SceneRenderer(self.meshes_dir, self.base_width,
                                   self.base_height, self.world_boundaries,
                                   self.cam_param, self.extra_verbose,
@@ -114,8 +114,8 @@ class DatasetFactory:
 
         self.generated_dataset.data.put(None)
         save_thread.join()
-        print("[*] Flushing annotations file...")
-        self.generated_dataset.flush_json()
+        # print("[*] Flushing annotations file...")
+        # self.generated_dataset.flush_json()
         print("[*] Saved to {}".format(self.generated_dataset.path))
         print("[*] Gate visibilty percentage: {}%".format(
             int((self.visible_gates/i)*100)))
@@ -257,9 +257,6 @@ class DatasetFactory:
                        fill=color, width=2)
 
     def draw_image_annotations(self, img, annotations, color="green"):
-        if len(annotations['bboxes']) < 1:
-            print("HEY!", annotations)
-            return
         text = "\ndrone_pose: {}\ndrone_orientation:{}\ngate_rotation:{}".format(
                     annotations['drone_pose'],
                     annotations['drone_orientation'],

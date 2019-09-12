@@ -56,8 +56,6 @@ class AnnotatedImage:
 
 class Dataset:
     def __init__(self, path: str, seed=None, max=0):
-        if not os.path.isdir(path):
-            raise Exception("Dataset directory {} not found".format(path))
         if seed:
             random.seed(seed)
         else:
@@ -85,6 +83,8 @@ class Dataset:
         return annotations
 
     def load(self, count, annotations_path=None, randomize=True):
+        if not os.path.isdir(self.path):
+            raise Exception("Dataset directory {} not found".format(self.path))
         print("[*] Loading and randomizing base dataset...")
         if randomize:
             files = os.listdir(self.path)
@@ -128,6 +128,8 @@ class Dataset:
     # Runs in a thread
     def save_json_live(self):
         if not self.saving:
+            if not os.path.isdir(self.path):
+                os.makedirs(self.path)
             with open(os.path.join(self.path, 'annotations.json'),
                       'w', encoding='UTF-8') as f:
                 annotations = {}

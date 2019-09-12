@@ -24,7 +24,6 @@ from ModernGL.ext.obj import Obj
 from math import atan2, cos, sin
 from PIL import Image
 
-
 class SceneRenderer:
     def __init__(self, meshes_dir: str, width: int, height: int,
                  world_boundaries, camera_parameters, render_perspective=False,
@@ -105,7 +104,6 @@ class SceneRenderer:
 
     def set_drone_pose(self, drone_pose):
         self.drone_pose = drone_pose
-        self.gate_poses = []
 
     def setup_opengl(self):
         self.context = moderngl.create_standalone_context()
@@ -175,8 +173,6 @@ class SceneRenderer:
                     in_fov = False
                     break
             max_tries -= 1
-
-        self.gate_poses.append(gate_translation)
 
         facing = False
         max_tries = 100
