@@ -58,8 +58,6 @@ optional arguments:
 --max-gates MAX_GATES
 					  the maximum amount of gates to spawn
 --min-dist MIN_DIST   the minimum distance between each gate, in meter
---oos OOS_PERCENTAGE  the out-of-screen acceptance margin for the gate
-					  center, in image frame percentage
 ```
 
 
