@@ -52,7 +52,6 @@ from dataset import Dataset, AnnotatedImage, SyntheticAnnotations
 [ ] Refactor DatasetFactory (create augentation class)
 [ ] Refactor SceneRenderer (use an interface to let users script their scene)
 [ ] Apply the distortion to the OpenGL projection
-[ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 [x] Add variation to the mesh and texture
 [x] Motion blur
 [x] Anti alisasing

@@ -10,10 +10,10 @@ Collecting a large dataset for the specific case of autonomous drone racing can 
 
 This tool aims to automate the main part of this task, by generating 3D projections of a given mesh in a virtual space, which can be adjusted to your physical space dimensions. Such projections are then overlaid on top of randomly selected images from a given base dataset, which must be annotated with camera poses and orientations for the virtual camera to be aligned properly.
 
-The output is a collection of images along with a CSV file containing per-image annotations, including:
+The output is a collection of images along with a JSON file containing per-image annotations, such as:
 
-- The gate center in pixel coordinates
-- The gate rotation in degrees [TODO]
+- The bounding box of the gate in pixel coordinates
+- The gate rotation in degrees
 - The gate visibility on the image (boolean)
 
 ## Usage
@@ -62,12 +62,14 @@ optional arguments:
 					  center, in image frame percentage
 ```
 
-At the bottom of the file, you are free to set the virtual environment boundaries (which should match your real environment in which you recorded the base dataset), as well as the gate center coordinates, relative to your mesh.
+
+At the bottom of the file, you are free to set the virtual environment
+boundaries, which should match your real environment in which you recorded the
+base dataset.
 
 ```
-datasetFactory.set_mesh_parameters(
+datasetFactory.set_world_parameters(
 	{'x': 10, 'y': 10}, # Real world boundaries in meters (relative to the mesh's scale)
-	Vector3([0.0, 0.0, 2.1]) # Gate center: figure this out yourself
 )
 ```
 
@@ -114,9 +116,15 @@ background_dataset/
 
 ### 3D Mesh
 
-A custom racing gate model is provided in the `data/` folder, along with a rudimentary
-texture, but it is up to you to use whichever OBJ file you desire.
-Do know that the scale you use for your model must be in accordance with the scale you provide in your base dataset annotations.
+A custom racing gate model is provided in the `meshes/` folder, along with its
+texture, but it is up to you to use whichever OBJ file you desire.  Do know that
+the scale you use for your model must be in accordance with the scale you
+provide in your base dataset annotations.
+
+A YAML file is also given as example for the configuration of each model. This
+one follows the usage of the script, and tells where the center of the gate is
+(from the mesh's coordinate system), what its width and height are and what
+texture to use.
 
 ### Requirements
 
@@ -154,8 +162,9 @@ The following Python3 packages are required (using an Anaconda environment is re
 - [x] Compute gate orientation with respect to the camera
 - [x] Ensure that the gate is always oriented towards the camera (for the annotation)
 - [x] Save annotations
+- [ ] Refactor DatasetFactory (create augentation class)
+- [ ] Refactor SceneRenderer (use an interface to let users script their scene)
 - [ ] Apply the distortion to the OpenGL projection
-- [ ] Histogram equalization of both images (hue, saturation, luminence ?...)
 - [x] Add variation to the mesh and texture
 - [x] Motion blur
 - [x] MSAA anti alisasing
