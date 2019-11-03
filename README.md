@@ -16,6 +16,8 @@ The output is a collection of images along with a JSON file containing per-image
 - The gate rotation in degrees
 - The gate visibility on the image (boolean)
 
+![Scene generation](github_animation.gif)
+
 ## Usage
 
 Running `dataset_factory.py -h` with Python3 returns the following:
