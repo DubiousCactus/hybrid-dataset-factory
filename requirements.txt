@@ -1,4 +1,4 @@
-certifi==2019.6.16
+certifi==2022.12.7
 cloudpickle==1.2.1
 cycler==0.10.0
 cytoolz==0.10.0
